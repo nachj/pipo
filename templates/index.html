@@ -1,0 +1,259 @@
+<!DOCTYPE HTML>
+<html>
+    <head>
+        <title>Painto</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}" />
+        <noscript><link rel="stylesheet" href="{{ url_for('static', filename='assets/css/noscript.css') }}" /></noscript>
+    </head>
+    <body class="is-preload">
+
+        <div id="wrapper">
+
+            <header id="header">
+                <div class="logo">
+                    <span class="icon fa-gem"></span>
+                </div>
+                <div class="content">
+                    <div class="inner">
+                        <h1>Painto</h1>
+                        <p><strong>Paint your Photo.</strong> 사진, 그 이상의 작품이 되다.</p>
+                        <p>정교한 AI 분석으로 탄생한 당신만의 DIY 캔버스,<br>
+                        클릭 한 번으로 평범한 사진이 특별한 명화로 변합니다.</p>
+                    </div>
+                </div>
+                <nav>
+                    <ul>
+                        <li><a href="#intro">Intro</a></li>
+                        <li><a href="#Pictures">Pictures</a></li>
+                        <li><a href="#Painting">Painting</a></li>
+                        <li><a href="#Payment">Payment</a></li>
+                    </ul>
+                </nav>
+            </header>
+
+            <div id="main">
+
+                <article id="intro">
+                    <h2 class="major">Intro</h2>
+                    <div class="step-container" style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 30px 4%;">
+                        
+                        <div class="step-item" style="width: 48%; text-align: center;">
+                            <strong style="display: inline-block; background: #f8f9fa; padding: 6px 16px; border-radius: 20px; margin-bottom: 12px; font-size: 0.95em; color: #333; border: 1px solid #eee;">Step 1. 사진 업로드</strong>
+                            <span class="image" style="display: block; margin: 0;">
+                                <img src="{{ url_for('static', filename='images/images1.jpg') }}" alt="사진 업로드" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
+                            </span>
+                        </div>
+
+                        <div class="step-item" style="width: 48%; text-align: center;">
+                            <strong style="display: inline-block; background: #f8f9fa; padding: 6px 16px; border-radius: 20px; margin-bottom: 12px; font-size: 0.95em; color: #333; border: 1px solid #eee;">Step 2. 사진 화풍 변환</strong>
+                            <span class="image" style="display: block; margin: 0;">
+                                <img src="{{ url_for('static', filename='images/images2.png') }}" alt="사진 화풍 자동 변환" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
+                            </span>
+                        </div>
+
+                        <div class="step-item" style="width: 48%; text-align: center;">
+                            <strong style="display: inline-block; background: #f8f9fa; padding: 6px 16px; border-radius: 20px; margin-bottom: 12px; font-size: 0.95em; color: #333; border: 1px solid #eee;">Step 3. AI Segmentation 변환</strong>
+                            <span class="image" style="display: block; margin: 0;">
+                                <img src="{{ url_for('static', filename='images/images3.png') }}" alt="AI Segmentation 변환" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
+                            </span>
+                        </div>
+
+                        <div class="step-item" style="width: 48%; text-align: center;">
+                            <strong style="display: inline-block; background: #f8f9fa; padding: 6px 16px; border-radius: 20px; margin-bottom: 12px; font-size: 0.95em; color: #333; border: 1px solid #eee;">Step 4. Segmentation 도안 생성</strong>
+                            <span class="image" style="display: block; margin: 0;">
+                                <img src="{{ url_for('static', filename='images/images4.png') }}" alt="Canvas 생성" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
+                            </span>
+                        </div>
+
+                        <div class="step-item" style="width: 100%; text-align: center; margin-top: 40px; clear: both; padding-top: 20px;">
+                            <strong style="display: inline-block; background: #ebf5ff; padding: 8px 20px; border-radius: 20px; margin-bottom: 16px; font-size: 0.95em; color: #007bff; border: 1px solid #cce5ff; font-weight: 600;">
+                                Step 5. Painting Canvas 생성
+                            </strong>
+                            <span class="image" style="display: block; width: 100%; margin: 0 auto;">
+                                <img src="{{ url_for('static', filename='images/images5.png') }}" alt="최종 도안 생성" 
+                                     style="width: 100%; max-width: 600px; height: auto; display: block; margin: 0 auto; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,123,255,0.15); border: 2px solid #007bff;" />
+                            </span>
+                            <p style="margin-top: 15px; font-size: 1em; color: #555; line-height: 1.6;">
+                                이미지 기반의 정밀한 피포페인팅 도안이 완성되었습니다.
+                            </p>
+                        </div>
+                    </div>
+                    <p style="margin-top: 2rem;"><strong>"세상에 단 하나뿐인 당신의 기억을 캔버스에 담아보세요."</strong></p>
+                    <p>평범한 사진이 특별한 예술 작품으로 재탄생합니다. 소중한 사람과의 추억, 사랑스러운 반려동물, 혹은 간직하고 싶은 풍경을 나만의 색채로 직접 칠하며 완성해가는 즐거움을 느껴보세요.</p>
+                    <p>복잡한 준비물은 필요 없습니다. 저희 서비스는 당신의 사진을 분석하여 누구나 쉽게 따라 할 수 있는 <strong>번호 기반 도안</strong>을 생성해 드립니다.</p>
+                </article>
+
+				<article id="Pictures">
+					<h2 class="Pictures">Pictures</h2>
+					<span class="image main" id="preview-container" style="width: 50%; margin: 0 auto 2rem auto;">
+						<img src="{{ url_for('static', filename='images/images1.jpg') }}" id="image-preview" alt="샘플 이미지" style="border-radius: 8px;" />
+					</span>
+					<p><strong>"당신의 소중한 순간을 도안으로 바꿔보세요."</strong></p>
+
+					<div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; border: 1px dashed #ffffff55; text-align: center;">
+						<label for="file-upload" style="display: block; margin-bottom: 10px; cursor: pointer;">
+							🎨 클릭하여 사진을 선택해주세요
+						</label>
+						<input type="file" id="file-upload" name="photo" accept="image/*" style="display: none;">
+						
+						<div id="progress-wrapper" style="display: none; margin-top: 20px;">
+							<div style="width: 100%; background: #444; border-radius: 10px; height: 20px; overflow: hidden;">
+								<div id="progress-bar" style="width: 0%; height: 100%; background: #007bff; transition: width 0.3s;"></div>
+							</div>
+							<p id="progress-text" style="margin-top: 10px; font-size: 0.9rem; color: #007bff;">준비 중...</p>
+						</div>
+
+						<p id="upload-info" style="font-size: 0.8rem; color: #aaa; margin-top: 10px;">* JPG, PNG 파일 형식을 지원합니다.</p>
+					</div>
+				</article>
+
+                <article id="Painting">
+                    <h2 class="major">Painting</h2>
+                    <span class="image main" style="width: 50%; margin: 0 auto 2rem auto;">
+                        <img src="{{ url_for('static', filename='results/test_preview.jpg') }}" alt="결과 샘플 이미지" style="border-radius: 8px;" />
+                    </span>
+                    <p><strong>"당신만의 특별한 도안이 완성되었습니다!"</strong></p>
+                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-bottom: 2rem;">
+                        <p>💡 이제 붓과 물감을 준비하고, 숫자를 따라 마음을 채우는 힐링의 시간을 가져보세요.</p>
+                        <ul class="actions">
+                            <li><a href="#Payment" class="button primary">도안 주문 하기</a></li>
+                            <li><a href="#Pictures" class="button">다른 사진 하기</a></li>
+                        </ul>
+                    </div>
+                </article>
+
+                <article id="Payment">
+                    <h2 class="major">Payment</h2>
+                    <form method="post" action="#" onsubmit="alert('현재 개발 진행 중입니다. 불편을 드려 죄송합니다.'); return false;">
+                        <div class="fields">
+                            <div class="field half">
+                                <label for="name">Name</label>
+                                <input type="text" name="name" id="name" />
+                            </div>
+                            <div class="field half">
+                                <label for="email">Email</label>
+                                <input type="text" name="email" id="email" />
+                            </div>
+                            <div class="field">
+                                <label for="message">Message</label>
+                                <textarea name="message" id="message" rows="4"></textarea>
+                            </div>
+                        </div>
+                        <ul class="actions">
+                            <li><input type="submit" value="Send Message" class="primary" /></li>
+                            <li><input type="reset" value="Reset" /></li>
+                        </ul>
+                    </form>
+                </article>
+            </div>
+
+            <footer id="footer">
+                <p class="copyright">&copy; PAINTO. Design based on Dimension.</p>
+            </footer>
+
+        </div>
+
+		<div id="bg"></div>
+
+				<script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
+				<script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
+				<script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
+				<script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
+				<script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+
+				<script>
+					const fileInput = document.getElementById('file-upload');
+					const progressBar = document.getElementById('progress-bar');
+					const progressText = document.getElementById('progress-text');
+					const progressWrapper = document.getElementById('progress-wrapper');
+					const imagePreview = document.getElementById('image-preview');
+
+					fileInput.addEventListener('change', function(e) {
+						const file = e.target.files[0];
+						if (!file) return;
+
+						// 1. 프리뷰 이미지 변경
+						const reader = new FileReader();
+						reader.onload = function(event) {
+							imagePreview.src = event.target.result;
+						};
+						reader.readAsDataURL(file);
+
+						// 2. 서버로 파일 전송
+						const formData = new FormData();
+						formData.append('photo', file);
+
+						progressWrapper.style.display = 'block';
+						progressText.innerText = "서버로 업로드 중...";
+
+						fetch('/upload', {
+							method: 'POST',
+							body: formData
+						})
+						.then(response => response.json())
+						.then(data => {
+							if (data.result === 'started') {
+								startPolling();
+							}
+						})
+						.catch(error => {
+							console.error('Error:', error);
+							alert('업로드 중 오류가 발생했습니다.');
+						});
+					});
+
+					function startPolling() {
+						const interval = setInterval(() => {
+							fetch('/progress')
+							.then(res => res.json())
+							.then(data => {
+								progressBar.style.width = data.percent + '%';
+								progressText.innerText = data.message;
+
+								if (data.status === 'complete' || data.percent >= 100) {
+									clearInterval(interval);
+									setTimeout(() => {
+										alert('도안 생성이 완료되었습니다!');
+										window.location.href = "#Painting"; 
+									}, 500);
+								}
+								
+								if (data.status === 'error') {
+									clearInterval(interval);
+									alert(data.message);
+								}
+							});
+						}, 1000);
+					}
+
+
+					function checkImageAndRedirect() {
+						const paintingSection = document.getElementById('Painting');
+						const resultImg = paintingSection.querySelector('img');
+						
+						// 현재 주소에 #Painting이 포함되어 있는지 확인
+						if (window.location.hash === '#Painting') {
+							
+							// 이미지 객체를 생성해서 실제로 파일이 존재하는지 테스트
+							const testImg = new Image();
+							testImg.src = resultImg.src;
+
+							testImg.onerror = function() {
+								// 이미지를 불러오는데 실패하면(파일이 없으면) 알림 후 이동
+								alert("아직 생성된 도안이 없습니다. 사진을 먼저 업로드해주세요!");
+								window.location.hash = '#Pictures';
+							};
+						}
+					}
+
+					// 주소가 바뀔 때마다 실행 (예: 버튼 클릭으로 이동할 때)
+					window.addEventListener('hashchange', checkImageAndRedirect);
+
+					// 처음 페이지에 접속했을 때도 실행
+					window.addEventListener('load', checkImageAndRedirect);
+				</script>
+
+			</body>
+		</html>

@@ -1,0 +1,2 @@
+가상 환경 접속 cmd로
+venv\Scripts\activate
