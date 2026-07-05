@@ -1,5 +1,6 @@
 __pycache__/
 *.py[cod]
+.env
 
 # 사용자별(IP prefix) 업로드/생성 결과물 — 실행할 때마다 새로 생기는 런타임 산출물이라 버전 관리 대상이 아님
 static/uploads/*

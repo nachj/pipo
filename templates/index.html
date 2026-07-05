@@ -21,6 +21,13 @@
                     <a href="#Pictures" class="nav-link">Pictures</a>
                     <a href="#Painting" id="nav-painting" class="nav-link">Painting</a>
                     <a href="#Payment" class="nav-link">Payment</a>
+                    {% if current_user.is_authenticated %}
+                        <span class="nav-link">{{ current_user.name }}님</span>
+                        <a href="{{ url_for('logout') }}" class="nav-link">로그아웃</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="nav-link">로그인</a>
+                        <a href="{{ url_for('signup') }}" class="nav-link">회원가입</a>
+                    {% endif %}
                 </nav>
                 <button class="nav-toggle" id="nav-toggle" aria-label="메뉴 열기" aria-expanded="false">
                     <i class="fas fa-bars"></i>

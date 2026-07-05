@@ -1,4 +1,7 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, redirect, url_for, flash
+from flask_login import LoginManager, login_user, logout_user, login_required, current_user
+from dotenv import load_dotenv
+import click
 import os
 import threading
 import base64
@@ -6,8 +9,54 @@ import numpy as np
 import requests
 from PIL import Image
 from segmentation import PipoPainter  # 작성하신 클래스 임포트
+from models import db, User
+
+load_dotenv()
 
 app = Flask(__name__)
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get(
+    'DATABASE_URL', 'postgresql://pipo_user:pipo_pass@localhost:5432/pipo_db'
+)
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db.init_app(app)
+
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = 'login'
+login_manager.login_message = '로그인이 필요한 페이지입니다.'
+
+
+@login_manager.user_loader
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
+
+
+with app.app_context():
+    db.create_all()
+
+
+@app.cli.command('create-admin')
+@click.option('--email', prompt=True)
+@click.option('--name', prompt=True)
+@click.option('--password', prompt=True, hide_input=True, confirmation_prompt=True)
+def create_admin(email, name, password):
+    """관리자 계정을 생성하거나, 이미 있는 계정이면 관리자로 승격합니다."""
+    email = email.strip().lower()
+    user = User.query.filter_by(email=email).first()
+    if user:
+        user.is_admin = True
+        db.session.commit()
+        click.echo(f'{email} 계정을 관리자로 승격했습니다.')
+        return
+
+    user = User(email=email, name=name, is_admin=True)
+    user.set_password(password)
+    db.session.add(user)
+    db.session.commit()
+    click.echo(f'관리자 계정 {email} 을 생성했습니다.')
+
 
 UPLOAD_FOLDER = 'static/uploads'
 RESULT_FOLDER = 'static/results'
@@ -102,6 +151,73 @@ def index():
         product_name=PRODUCT_NAME,
         product_price=PRODUCT_PRICE,
     )
+
+
+@app.route('/signup', methods=['GET', 'POST'])
+def signup():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        name = request.form.get('name', '').strip()
+        password = request.form.get('password', '')
+        password_confirm = request.form.get('password_confirm', '')
+
+        if not email or not name or not password:
+            flash('모든 항목을 입력해주세요.', 'error')
+            return render_template('signup.html', email=email, name=name)
+
+        if password != password_confirm:
+            flash('비밀번호가 일치하지 않습니다.', 'error')
+            return render_template('signup.html', email=email, name=name)
+
+        if len(password) < 8:
+            flash('비밀번호는 8자 이상이어야 합니다.', 'error')
+            return render_template('signup.html', email=email, name=name)
+
+        if User.query.filter_by(email=email).first():
+            flash('이미 가입된 이메일입니다.', 'error')
+            return render_template('signup.html', email=email, name=name)
+
+        user = User(email=email, name=name)
+        user.set_password(password)
+        db.session.add(user)
+        db.session.commit()
+
+        login_user(user)
+        flash('회원가입이 완료되었습니다.', 'success')
+        return redirect(url_for('index'))
+
+    return render_template('signup.html')
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+
+    if request.method == 'POST':
+        email = request.form.get('email', '').strip().lower()
+        password = request.form.get('password', '')
+
+        user = User.query.filter_by(email=email).first()
+        if user and user.check_password(password):
+            login_user(user)
+            next_page = request.args.get('next')
+            return redirect(next_page or url_for('index'))
+
+        flash('이메일 또는 비밀번호가 올바르지 않습니다.', 'error')
+        return render_template('login.html', email=email)
+
+    return render_template('login.html')
+
+
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
 
 
 @app.route('/upload', methods=['POST'])

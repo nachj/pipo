@@ -714,3 +714,69 @@ a { color: inherit; text-decoration: none; }
     margin: 0 0 28px;
     line-height: 1.6;
 }
+
+/* ---------- Auth pages (login.html / signup.html) ---------- */
+
+.auth-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.auth-card {
+    max-width: 420px;
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 40px 32px;
+}
+
+.auth-card h1 {
+    font-size: 1.4rem;
+    font-weight: 800;
+    margin: 0 0 28px;
+    text-align: center;
+}
+
+.auth-card .form-field {
+    margin-bottom: 18px;
+}
+
+.auth-card .btn {
+    width: 100%;
+    justify-content: center;
+    margin-top: 8px;
+}
+
+.auth-flash {
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    margin-bottom: 20px;
+    font-size: 0.9rem;
+}
+
+.auth-flash-error {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+}
+
+.auth-flash-success {
+    background: color-mix(in srgb, var(--primary) 15%, transparent);
+    color: var(--primary);
+}
+
+.auth-footer {
+    text-align: center;
+    margin-top: 20px;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.auth-footer a {
+    color: var(--primary);
+    font-weight: 700;
+}
