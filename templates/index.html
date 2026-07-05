@@ -27,7 +27,7 @@
                     <ul>
                         <li><a href="#intro">Intro</a></li>
                         <li><a href="#Pictures">Pictures</a></li>
-                        <li><a href="#Painting">Painting</a></li>
+                        <li><a href="#Painting" id="nav-painting">Painting</a></li>
                         <li><a href="#Payment">Payment</a></li>
                     </ul>
                 </nav>
@@ -112,7 +112,7 @@
                 <article id="Painting">
                     <h2 class="major">Painting</h2>
                     <span class="image main" style="width: 50%; margin: 0 auto 2rem auto;">
-                        <img src="{{ url_for('static', filename='results/test_preview.jpg') }}" alt="결과 샘플 이미지" style="border-radius: 8px;" />
+                        <img src="{{ url_for('static', filename=initial_preview) }}" alt="결과 샘플 이미지" style="border-radius: 8px;" />
                     </span>
                     <p><strong>"당신만의 특별한 도안이 완성되었습니다!"</strong></p>
                     <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-bottom: 2rem;">
@@ -169,6 +169,8 @@
 					const progressText = document.getElementById('progress-text');
 					const progressWrapper = document.getElementById('progress-wrapper');
 					const imagePreview = document.getElementById('image-preview');
+					const paintingResultImg = document.querySelector('#Painting .image.main img');
+					let currentPollingInterval = null;
 
 					fileInput.addEventListener('change', function(e) {
 						const file = e.target.files[0];
@@ -185,7 +187,9 @@
 						const formData = new FormData();
 						formData.append('photo', file);
 
+						fileInput.disabled = true;
 						progressWrapper.style.display = 'block';
+						progressBar.style.width = '0%';
 						progressText.innerText = "서버로 업로드 중...";
 
 						fetch('/upload', {
@@ -196,16 +200,25 @@
 						.then(data => {
 							if (data.result === 'started') {
 								startPolling();
+							} else {
+								fileInput.disabled = false;
+								alert(data.message || '업로드에 실패했습니다.');
 							}
 						})
 						.catch(error => {
 							console.error('Error:', error);
+							fileInput.disabled = false;
 							alert('업로드 중 오류가 발생했습니다.');
 						});
 					});
 
 					function startPolling() {
-						const interval = setInterval(() => {
+						// 이전에 돌고 있던 폴링이 있다면 정리하고 새로 시작
+						if (currentPollingInterval) {
+							clearInterval(currentPollingInterval);
+						}
+
+						currentPollingInterval = setInterval(() => {
 							fetch('/progress')
 							.then(res => res.json())
 							.then(data => {
@@ -213,32 +226,46 @@
 								progressText.innerText = data.message;
 
 								if (data.status === 'complete' || data.percent >= 100) {
-									clearInterval(interval);
+									clearInterval(currentPollingInterval);
+									currentPollingInterval = null;
+									fileInput.disabled = false;
+
+									// 새로고침 없이 완성된 도안 이미지로 즉시 교체 (캐시 방지용 타임스탬프 추가)
+									if (data.result_file) {
+										paintingResultImg.src = "/static/results/" + data.result_file + "?t=" + new Date().getTime();
+									}
+
 									setTimeout(() => {
 										alert('도안 생성이 완료되었습니다!');
-										window.location.href = "#Painting"; 
+										window.location.href = "#Painting";
 									}, 500);
 								}
-								
+
 								if (data.status === 'error') {
-									clearInterval(interval);
+									clearInterval(currentPollingInterval);
+									currentPollingInterval = null;
+									fileInput.disabled = false;
 									alert(data.message);
 								}
+							})
+							.catch(error => {
+								console.error('Error:', error);
+								clearInterval(currentPollingInterval);
+								currentPollingInterval = null;
+								fileInput.disabled = false;
+								alert('진행 상태를 확인하는 중 오류가 발생했습니다.');
 							});
 						}, 1000);
 					}
 
 
 					function checkImageAndRedirect() {
-						const paintingSection = document.getElementById('Painting');
-						const resultImg = paintingSection.querySelector('img');
-						
 						// 현재 주소에 #Painting이 포함되어 있는지 확인
 						if (window.location.hash === '#Painting') {
-							
+
 							// 이미지 객체를 생성해서 실제로 파일이 존재하는지 테스트
 							const testImg = new Image();
-							testImg.src = resultImg.src;
+							testImg.src = paintingResultImg.src;
 
 							testImg.onerror = function() {
 								// 이미지를 불러오는데 실패하면(파일이 없으면) 알림 후 이동
@@ -248,11 +275,27 @@
 						}
 					}
 
-					// 주소가 바뀔 때마다 실행 (예: 버튼 클릭으로 이동할 때)
-					window.addEventListener('hashchange', checkImageAndRedirect);
-
-					// 처음 페이지에 접속했을 때도 실행
+					// 페이지를 #Painting으로 직접 열었거나(북마크/새로고침) 뒤로/앞으로 가기로
+					// 진입한 경우를 대비한 안전장치
 					window.addEventListener('load', checkImageAndRedirect);
+					window.addEventListener('popstate', checkImageAndRedirect);
+
+					// 네비게이션의 "Painting" 클릭은 해시가 바뀌기 전에 먼저 이미지 존재 여부를
+					// 확인해서, main.js의 화면 전환 애니메이션이 진행 중일 때 두 번째 해시 변경이
+					// 겹쳐 Pictures와 Painting이 동시에 노출되는 경합(race condition)을 방지한다.
+					document.getElementById('nav-painting').addEventListener('click', function(e) {
+						e.preventDefault();
+
+						const testImg = new Image();
+						testImg.onload = function() {
+							window.location.hash = '#Painting';
+						};
+						testImg.onerror = function() {
+							alert("아직 생성된 도안이 없습니다. 사진을 먼저 업로드해주세요!");
+							window.location.hash = '#Pictures';
+						};
+						testImg.src = paintingResultImg.src;
+					});
 				</script>
 
 			</body>
