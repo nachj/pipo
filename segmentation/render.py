@@ -1,4 +1,3 @@
-import cv2
 import numpy as np
 from scipy.cluster.hierarchy import linkage, fcluster
 from scipy.spatial.distance import pdist
@@ -45,7 +44,7 @@ def _merge_similar_colors(centers_lab, labels, threshold):
     return merged_labels, merged_centers_lab
 
 
-def process_rendering(stylized_img, k_colors, color_merge_threshold=5):
+def process_rendering(stylized_img, k_colors, color_merge_threshold=5, sample_size=20000):
     """[Step 3] 강력한 색상 덩어리 형성 후 렌더링
 
     비슷한 색(LAB deltaE < color_merge_threshold)의 팔레트 항목은 하나의
@@ -53,26 +52,29 @@ def process_rendering(stylized_img, k_colors, color_merge_threshold=5):
 
     반환값: (render_img, labels, palette_rgb)
     """
-    # 1. 시각적으로 비슷한 색들을 강제로 묶음 (MeanShift)
-    # sp(공간 거리)와 sr(색상 거리)을 조절하여 뭉침 정도를 결정합니다.
-    shifted = cv2.pyrMeanShiftFiltering(cv2.cvtColor(stylized_img, cv2.COLOR_RGB2BGR),
-                                        sp=20, sr=40)
-    shifted = cv2.cvtColor(shifted, cv2.COLOR_BGR2RGB)
-
-    # 2. K-Means로 물감 색상 제한
-    h, w, c = shifted.shape
-    pixels = shifted.reshape(-1, 3)
+    # stylize_image에서 이미 MeanShift + 포스터화로 색을 충분히 뭉쳐 놓았으므로
+    # (segmentation/stylize.py 참고) 여기서 또 한 번 전체 해상도에 MeanShift를
+    # 돌리는 건 같은 일을 반복하며 수 초를 낭비할 뿐이다. 바로 K-Means로 넘어간다.
+    h, w, c = stylized_img.shape
+    pixels = stylized_img.reshape(-1, 3)
     pixels_lab = rgb2lab(pixels / 255.0)
 
-    kmeans = KMeans(n_clusters=k_colors, n_init="auto", random_state=42).fit(pixels_lab)
+    # 1. K-Means로 물감 색상 제한
+    # 팔레트는 대표색 몇 개만 뽑으면 되는 작업이라 전체 픽셀(수백만 개)로 학습할
+    # 필요가 없다. 무작위로 뽑은 샘플로 학습(fit)한 뒤, 전체 픽셀은 그 결과에
+    # 배정(predict)만 하면 결과 품질 차이 없이 훨씬 빠르다.
+    rng = np.random.default_rng(42)
+    sample_idx = rng.choice(pixels_lab.shape[0], size=min(sample_size, pixels_lab.shape[0]), replace=False)
+    kmeans = KMeans(n_clusters=k_colors, n_init="auto", random_state=42).fit(pixels_lab[sample_idx])
+    labels = kmeans.predict(pixels_lab)
 
-    # 3. 비슷한 팔레트 색상끼리 병합해서 번호 개수를 줄임
+    # 2. 비슷한 팔레트 색상끼리 병합해서 번호 개수를 줄임
     merged_labels, merged_centers_lab = _merge_similar_colors(
-        kmeans.cluster_centers_, kmeans.labels_, color_merge_threshold
+        kmeans.cluster_centers_, labels, color_merge_threshold
     )
     palette_rgb = (lab2rgb(merged_centers_lab.reshape(-1, 1, 3)) * 255).astype(np.uint8).reshape(-1, 3)
 
-    # 4. 렌더링 이미지 생성
+    # 3. 렌더링 이미지 생성
     render_pixels = palette_rgb[merged_labels]
     render_img = render_pixels.reshape(h, w, c)
 

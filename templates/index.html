@@ -1,302 +1,340 @@
 <!DOCTYPE HTML>
-<html>
+<html lang="ko">
     <head>
-        <title>Painto</title>
+        <title>Painto — Paint your Photo</title>
         <meta charset="utf-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
-        <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/main.css') }}" />
-        <noscript><link rel="stylesheet" href="{{ url_for('static', filename='assets/css/noscript.css') }}" /></noscript>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/fontawesome-all.min.css') }}" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/modern.css') }}" />
     </head>
-    <body class="is-preload">
+    <body>
 
-        <div id="wrapper">
-
-            <header id="header">
-                <div class="logo">
-                    <span class="icon fa-gem"></span>
-                </div>
-                <div class="content">
-                    <div class="inner">
-                        <h1>Painto</h1>
-                        <p><strong>Paint your Photo.</strong> 사진, 그 이상의 작품이 되다.</p>
-                        <p>정교한 AI 분석으로 탄생한 당신만의 DIY 캔버스,<br>
-                        클릭 한 번으로 평범한 사진이 특별한 명화로 변합니다.</p>
-                    </div>
-                </div>
-                <nav>
-                    <ul>
-                        <li><a href="#intro">Intro</a></li>
-                        <li><a href="#Pictures">Pictures</a></li>
-                        <li><a href="#Painting" id="nav-painting">Painting</a></li>
-                        <li><a href="#Payment">Payment</a></li>
-                    </ul>
+        <header class="site-header">
+            <div class="nav-container">
+                <a class="logo" href="#hero">
+                    <span class="logo-icon"><i class="fas fa-palette"></i></span>
+                    Painto
+                </a>
+                <nav class="site-nav" id="site-nav">
+                    <a href="#intro" class="nav-link">Intro</a>
+                    <a href="#Pictures" class="nav-link">Pictures</a>
+                    <a href="#Painting" id="nav-painting" class="nav-link">Painting</a>
+                    <a href="#Payment" class="nav-link">Payment</a>
                 </nav>
-            </header>
+                <button class="nav-toggle" id="nav-toggle" aria-label="메뉴 열기" aria-expanded="false">
+                    <i class="fas fa-bars"></i>
+                </button>
+            </div>
+        </header>
 
-            <div id="main">
+        <main>
 
-                <article id="intro">
-                    <h2 class="major">Intro</h2>
-                    <div class="step-container" style="display: flex; flex-wrap: wrap; justify-content: space-between; gap: 30px 4%;">
-                        
-                        <div class="step-item" style="width: 48%; text-align: center;">
-                            <strong style="display: inline-block; background: #f8f9fa; padding: 6px 16px; border-radius: 20px; margin-bottom: 12px; font-size: 0.95em; color: #333; border: 1px solid #eee;">Step 1. 사진 업로드</strong>
-                            <span class="image" style="display: block; margin: 0;">
-                                <img src="{{ url_for('static', filename='images/images1.jpg') }}" alt="사진 업로드" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
-                            </span>
+            <section class="hero" id="hero">
+                <div class="hero-inner">
+                    <span class="eyebrow">AI Paint by Numbers</span>
+                    <h1>Paint your Photo.<br><span class="text-gradient">사진, 그 이상의 작품이 되다.</span></h1>
+                    <p class="hero-sub">
+                        정교한 AI 분석으로 탄생한 당신만의 DIY 캔버스,<br>
+                        클릭 한 번으로 평범한 사진이 특별한 명화로 변합니다.
+                    </p>
+                    <div class="hero-actions">
+                        <a href="#Pictures" class="btn btn-primary">지금 시작하기 <i class="fas fa-arrow-right"></i></a>
+                        <a href="#intro" class="btn btn-ghost">어떻게 작동하나요?</a>
+                    </div>
+                </div>
+            </section>
+
+            <article id="intro" class="section">
+                <div class="section-inner">
+                    <div class="section-heading">
+                        <span class="section-tag">Intro</span>
+                        <h2>5단계로 완성되는 나만의 도안</h2>
+                    </div>
+
+                    <div class="steps-grid">
+                        <div class="step-card">
+                            <span class="step-badge">1</span>
+                            <h3>사진 업로드</h3>
+                            <img src="{{ url_for('static', filename='images/images1.jpg') }}" alt="사진 업로드" />
                         </div>
 
-                        <div class="step-item" style="width: 48%; text-align: center;">
-                            <strong style="display: inline-block; background: #f8f9fa; padding: 6px 16px; border-radius: 20px; margin-bottom: 12px; font-size: 0.95em; color: #333; border: 1px solid #eee;">Step 2. 사진 화풍 변환</strong>
-                            <span class="image" style="display: block; margin: 0;">
-                                <img src="{{ url_for('static', filename='images/images2.png') }}" alt="사진 화풍 자동 변환" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
-                            </span>
+                        <div class="step-card">
+                            <span class="step-badge">2</span>
+                            <h3>사진 화풍 변환</h3>
+                            <img src="{{ url_for('static', filename='images/images2.png') }}" alt="사진 화풍 자동 변환" />
                         </div>
 
-                        <div class="step-item" style="width: 48%; text-align: center;">
-                            <strong style="display: inline-block; background: #f8f9fa; padding: 6px 16px; border-radius: 20px; margin-bottom: 12px; font-size: 0.95em; color: #333; border: 1px solid #eee;">Step 3. AI Segmentation 변환</strong>
-                            <span class="image" style="display: block; margin: 0;">
-                                <img src="{{ url_for('static', filename='images/images3.png') }}" alt="AI Segmentation 변환" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
-                            </span>
+                        <div class="step-card">
+                            <span class="step-badge">3</span>
+                            <h3>AI Segmentation 변환</h3>
+                            <img src="{{ url_for('static', filename='images/images3.png') }}" alt="AI Segmentation 변환" />
                         </div>
 
-                        <div class="step-item" style="width: 48%; text-align: center;">
-                            <strong style="display: inline-block; background: #f8f9fa; padding: 6px 16px; border-radius: 20px; margin-bottom: 12px; font-size: 0.95em; color: #333; border: 1px solid #eee;">Step 4. Segmentation 도안 생성</strong>
-                            <span class="image" style="display: block; margin: 0;">
-                                <img src="{{ url_for('static', filename='images/images4.png') }}" alt="Canvas 생성" style="width: 100%; height: auto; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08);" />
-                            </span>
+                        <div class="step-card">
+                            <span class="step-badge">4</span>
+                            <h3>Segmentation 도안 생성</h3>
+                            <img src="{{ url_for('static', filename='images/images4.png') }}" alt="Canvas 생성" />
                         </div>
 
-                        <div class="step-item" style="width: 100%; text-align: center; margin-top: 40px; clear: both; padding-top: 20px;">
-                            <strong style="display: inline-block; background: #ebf5ff; padding: 8px 20px; border-radius: 20px; margin-bottom: 16px; font-size: 0.95em; color: #007bff; border: 1px solid #cce5ff; font-weight: 600;">
-                                Step 5. Painting Canvas 생성
-                            </strong>
-                            <span class="image" style="display: block; width: 100%; margin: 0 auto;">
-                                <img src="{{ url_for('static', filename='images/images5.png') }}" alt="최종 도안 생성" 
-                                     style="width: 100%; max-width: 600px; height: auto; display: block; margin: 0 auto; border-radius: 12px; box-shadow: 0 8px 24px rgba(0,123,255,0.15); border: 2px solid #007bff;" />
-                            </span>
-                            <p style="margin-top: 15px; font-size: 1em; color: #555; line-height: 1.6;">
-                                이미지 기반의 정밀한 피포페인팅 도안이 완성되었습니다.
-                            </p>
+                        <div class="step-card featured">
+                            <div class="step-copy">
+                                <span class="step-badge">5</span>
+                                <h3>Painting Canvas 생성</h3>
+                                <p>이미지 기반의 정밀한 피포페인팅 도안이 완성되었습니다.</p>
+                            </div>
+                            <img src="{{ url_for('static', filename='images/images5.png') }}" alt="최종 도안 생성" />
                         </div>
                     </div>
-                    <p style="margin-top: 2rem;"><strong>"세상에 단 하나뿐인 당신의 기억을 캔버스에 담아보세요."</strong></p>
-                    <p>평범한 사진이 특별한 예술 작품으로 재탄생합니다. 소중한 사람과의 추억, 사랑스러운 반려동물, 혹은 간직하고 싶은 풍경을 나만의 색채로 직접 칠하며 완성해가는 즐거움을 느껴보세요.</p>
-                    <p>복잡한 준비물은 필요 없습니다. 저희 서비스는 당신의 사진을 분석하여 누구나 쉽게 따라 할 수 있는 <strong>번호 기반 도안</strong>을 생성해 드립니다.</p>
-                </article>
 
-				<article id="Pictures">
-					<h2 class="Pictures">Pictures</h2>
-					<span class="image main" id="preview-container" style="width: 50%; margin: 0 auto 2rem auto;">
-						<img src="{{ url_for('static', filename='images/images1.jpg') }}" id="image-preview" alt="샘플 이미지" style="border-radius: 8px;" />
-					</span>
-					<p><strong>"당신의 소중한 순간을 도안으로 바꿔보세요."</strong></p>
+                    <p class="pull-quote">"세상에 단 하나뿐인 당신의 기억을 캔버스에 담아보세요."</p>
+                    <p class="section-desc">
+                        평범한 사진이 특별한 예술 작품으로 재탄생합니다. 소중한 사람과의 추억, 사랑스러운 반려동물, 혹은 간직하고 싶은
+                        풍경을 나만의 색채로 직접 칠하며 완성해가는 즐거움을 느껴보세요. 복잡한 준비물은 필요 없습니다. 저희 서비스는 당신의
+                        사진을 분석하여 누구나 쉽게 따라 할 수 있는 <strong>번호 기반 도안</strong>을 생성해 드립니다.
+                    </p>
+                </div>
+            </article>
 
-					<div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; border: 1px dashed #ffffff55; text-align: center;">
-						<label for="file-upload" style="display: block; margin-bottom: 10px; cursor: pointer;">
-							🎨 클릭하여 사진을 선택해주세요
-						</label>
-						<input type="file" id="file-upload" name="photo" accept="image/*" style="display: none;">
-						
-						<div id="progress-wrapper" style="display: none; margin-top: 20px;">
-							<div style="width: 100%; background: #444; border-radius: 10px; height: 20px; overflow: hidden;">
-								<div id="progress-bar" style="width: 0%; height: 100%; background: #007bff; transition: width 0.3s;"></div>
-							</div>
-							<p id="progress-text" style="margin-top: 10px; font-size: 0.9rem; color: #007bff;">준비 중...</p>
-						</div>
+            <article id="Pictures" class="section section-alt">
+                <div class="section-inner narrow">
+                    <div class="section-heading">
+                        <span class="section-tag">Pictures</span>
+                        <h2>당신의 소중한 순간을 도안으로 바꿔보세요</h2>
+                    </div>
 
-						<p id="upload-info" style="font-size: 0.8rem; color: #aaa; margin-top: 10px;">* JPG, PNG 파일 형식을 지원합니다.</p>
-					</div>
-				</article>
-
-                <article id="Painting">
-                    <h2 class="major">Painting</h2>
-                    <span class="image main" style="width: 50%; margin: 0 auto 2rem auto;">
-                        <img src="{{ url_for('static', filename=initial_preview) }}" alt="결과 샘플 이미지" style="border-radius: 8px;" />
+                    <span class="preview-card">
+                        <img id="image-preview" src="{{ url_for('static', filename='images/images1.jpg') }}" alt="샘플 이미지" />
                     </span>
-                    <p><strong>"당신만의 특별한 도안이 완성되었습니다!"</strong></p>
-                    <div style="background: rgba(255,255,255,0.05); padding: 20px; border-radius: 10px; margin-bottom: 2rem;">
-                        <p>💡 이제 붓과 물감을 준비하고, 숫자를 따라 마음을 채우는 힐링의 시간을 가져보세요.</p>
-                        <ul class="actions">
-                            <li><a href="#Payment" class="button primary">도안 주문 하기</a></li>
-                            <li><a href="#Pictures" class="button">다른 사진 하기</a></li>
-                        </ul>
-                    </div>
-                </article>
 
-                <article id="Payment">
-                    <h2 class="major">Payment</h2>
-                    <form method="post" action="#" onsubmit="alert('현재 개발 진행 중입니다. 불편을 드려 죄송합니다.'); return false;">
-                        <div class="fields">
-                            <div class="field half">
+                    <div class="upload-card">
+                        <label for="file-upload" class="dropzone" id="dropzone">
+                            <span class="dropzone-icon"><i class="fas fa-cloud-upload-alt"></i></span>
+                            <span class="dropzone-title">클릭하여 사진을 선택해주세요</span>
+                            <span class="dropzone-sub">JPG, PNG 파일 형식을 지원합니다</span>
+                        </label>
+                        <input type="file" id="file-upload" name="photo" accept="image/*" class="sr-only" />
+
+                        <div id="progress-wrapper" class="progress-wrapper">
+                            <div class="progress-track">
+                                <div id="progress-bar" class="progress-fill"></div>
+                            </div>
+                            <p id="progress-text" class="progress-text">준비 중...</p>
+                        </div>
+                    </div>
+                </div>
+            </article>
+
+            <article id="Painting" class="section">
+                <div class="section-inner narrow">
+                    <div class="section-heading">
+                        <span class="section-tag">Painting</span>
+                        <h2 id="painting-heading">{{ "당신만의 특별한 도안이 완성되었습니다!" if has_result else "아직 완성된 도안이 없어요" }}</h2>
+                    </div>
+
+                    <span class="result-card" id="result-card">
+                        <img id="painting-result-img" src="{{ url_for('static', filename=initial_preview) if has_result else '' }}"
+                             alt="결과 샘플 이미지" {{ '' if has_result else 'hidden' }} />
+                        <span class="result-empty" id="result-empty" {{ 'hidden' if has_result else '' }}>
+                            <span class="result-empty-icon"><i class="fas fa-image"></i></span>
+                            <span class="result-empty-title">아직 생성된 도안이 없어요</span>
+                            <span class="result-empty-sub">Pictures에서 사진을 올리면 여기에 결과가 표시돼요</span>
+                        </span>
+                    </span>
+
+                    <p class="result-hint" id="result-hint" {{ '' if has_result else 'hidden' }}>
+                        <i class="fas fa-lightbulb"></i>이제 붓과 물감을 준비하고, 숫자를 따라 마음을 채우는 힐링의 시간을 가져보세요.
+                    </p>
+
+                    <div class="hero-actions">
+                        <a href="#Payment" class="btn btn-primary" id="order-btn" {{ '' if has_result else 'hidden' }}>도안 주문 하기</a>
+                        <a href="#Pictures" class="btn {{ 'btn-ghost' if has_result else 'btn-primary' }}">{{ "다른 사진 하기" if has_result else "사진 업로드하러 가기" }}</a>
+                    </div>
+                </div>
+            </article>
+
+            <article id="Payment" class="section section-alt">
+                <div class="section-inner narrow">
+                    <div class="section-heading">
+                        <span class="section-tag">Payment</span>
+                        <h2>도안 주문하기</h2>
+                    </div>
+
+                    <form class="modern-form" method="post" action="#" onsubmit="alert('현재 개발 진행 중입니다. 불편을 드려 죄송합니다.'); return false;">
+                        <div class="form-row">
+                            <div class="form-field">
                                 <label for="name">Name</label>
                                 <input type="text" name="name" id="name" />
                             </div>
-                            <div class="field half">
+                            <div class="form-field">
                                 <label for="email">Email</label>
                                 <input type="text" name="email" id="email" />
                             </div>
-                            <div class="field">
+                            <div class="form-field full">
                                 <label for="message">Message</label>
                                 <textarea name="message" id="message" rows="4"></textarea>
                             </div>
                         </div>
-                        <ul class="actions">
-                            <li><input type="submit" value="Send Message" class="primary" /></li>
+                        <ul class="form-actions">
+                            <li><input type="submit" value="Send Message" /></li>
                             <li><input type="reset" value="Reset" /></li>
                         </ul>
                     </form>
-                </article>
-            </div>
+                </div>
+            </article>
 
-            <footer id="footer">
-                <p class="copyright">&copy; PAINTO. Design based on Dimension.</p>
-            </footer>
+        </main>
 
-        </div>
+        <footer class="site-footer">
+            <p>&copy; PAINTO. All rights reserved.</p>
+        </footer>
 
-		<div id="bg"></div>
+        <script>
+            // 모바일 메뉴 토글
+            const navToggle = document.getElementById('nav-toggle');
+            const siteNav = document.getElementById('site-nav');
+            navToggle.addEventListener('click', function () {
+                const isOpen = siteNav.classList.toggle('is-open');
+                navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+            siteNav.querySelectorAll('a').forEach(function (link) {
+                link.addEventListener('click', function () { siteNav.classList.remove('is-open'); });
+            });
 
-				<script src="{{ url_for('static', filename='assets/js/jquery.min.js') }}"></script>
-				<script src="{{ url_for('static', filename='assets/js/browser.min.js') }}"></script>
-				<script src="{{ url_for('static', filename='assets/js/breakpoints.min.js') }}"></script>
-				<script src="{{ url_for('static', filename='assets/js/util.js') }}"></script>
-				<script src="{{ url_for('static', filename='assets/js/main.js') }}"></script>
+            const fileInput = document.getElementById('file-upload');
+            const progressBar = document.getElementById('progress-bar');
+            const progressText = document.getElementById('progress-text');
+            const progressWrapper = document.getElementById('progress-wrapper');
+            const imagePreview = document.getElementById('image-preview');
+            const paintingResultImg = document.getElementById('painting-result-img');
+            const resultEmpty = document.getElementById('result-empty');
+            const resultHint = document.getElementById('result-hint');
+            const orderBtn = document.getElementById('order-btn');
+            const paintingHeading = document.getElementById('painting-heading');
+            let currentPollingInterval = null;
+            // 서버가 렌더링 시점에 실제로 결과 파일이 있었는지 알려준 값.
+            // 깨진 이미지로 존재 여부를 추측(로드 성공/실패)하던 방식은 느리고
+            // 불안정해서, 서버에서 내려준 값 + 업로드 완료 시점 갱신으로 대체한다.
+            let hasResult = {{ 'true' if has_result else 'false' }};
 
-				<script>
-					const fileInput = document.getElementById('file-upload');
-					const progressBar = document.getElementById('progress-bar');
-					const progressText = document.getElementById('progress-text');
-					const progressWrapper = document.getElementById('progress-wrapper');
-					const imagePreview = document.getElementById('image-preview');
-					const paintingResultImg = document.querySelector('#Painting .image.main img');
-					let currentPollingInterval = null;
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
 
-					fileInput.addEventListener('change', function(e) {
-						const file = e.target.files[0];
-						if (!file) return;
+                // 1. 프리뷰 이미지 변경
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    imagePreview.src = event.target.result;
+                };
+                reader.readAsDataURL(file);
 
-						// 1. 프리뷰 이미지 변경
-						const reader = new FileReader();
-						reader.onload = function(event) {
-							imagePreview.src = event.target.result;
-						};
-						reader.readAsDataURL(file);
+                // 2. 서버로 파일 전송
+                const formData = new FormData();
+                formData.append('photo', file);
 
-						// 2. 서버로 파일 전송
-						const formData = new FormData();
-						formData.append('photo', file);
+                fileInput.disabled = true;
+                progressWrapper.style.display = 'block';
+                progressBar.style.width = '0%';
+                progressText.innerText = "서버로 업로드 중...";
 
-						fileInput.disabled = true;
-						progressWrapper.style.display = 'block';
-						progressBar.style.width = '0%';
-						progressText.innerText = "서버로 업로드 중...";
+                fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.result === 'started') {
+                        startPolling();
+                    } else {
+                        fileInput.disabled = false;
+                        alert(data.message || '업로드에 실패했습니다.');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    fileInput.disabled = false;
+                    alert('업로드 중 오류가 발생했습니다.');
+                });
+            });
 
-						fetch('/upload', {
-							method: 'POST',
-							body: formData
-						})
-						.then(response => response.json())
-						.then(data => {
-							if (data.result === 'started') {
-								startPolling();
-							} else {
-								fileInput.disabled = false;
-								alert(data.message || '업로드에 실패했습니다.');
-							}
-						})
-						.catch(error => {
-							console.error('Error:', error);
-							fileInput.disabled = false;
-							alert('업로드 중 오류가 발생했습니다.');
-						});
-					});
+            function startPolling() {
+                // 이전에 돌고 있던 폴링이 있다면 정리하고 새로 시작
+                if (currentPollingInterval) {
+                    clearInterval(currentPollingInterval);
+                }
 
-					function startPolling() {
-						// 이전에 돌고 있던 폴링이 있다면 정리하고 새로 시작
-						if (currentPollingInterval) {
-							clearInterval(currentPollingInterval);
-						}
+                currentPollingInterval = setInterval(() => {
+                    fetch('/progress')
+                    .then(res => res.json())
+                    .then(data => {
+                        progressBar.style.width = data.percent + '%';
+                        progressText.innerText = data.message;
 
-						currentPollingInterval = setInterval(() => {
-							fetch('/progress')
-							.then(res => res.json())
-							.then(data => {
-								progressBar.style.width = data.percent + '%';
-								progressText.innerText = data.message;
+                        if (data.status === 'complete' || data.percent >= 100) {
+                            clearInterval(currentPollingInterval);
+                            currentPollingInterval = null;
+                            fileInput.disabled = false;
 
-								if (data.status === 'complete' || data.percent >= 100) {
-									clearInterval(currentPollingInterval);
-									currentPollingInterval = null;
-									fileInput.disabled = false;
+                            // 새로고침 없이 완성된 도안 이미지로 즉시 교체 (캐시 방지용 타임스탬프 추가)
+                            if (data.result_file) {
+                                paintingResultImg.src = "/static/results/" + data.result_file + "?t=" + new Date().getTime();
+                                paintingResultImg.hidden = false;
+                                resultEmpty.hidden = true;
+                                resultHint.hidden = false;
+                                orderBtn.hidden = false;
+                                paintingHeading.textContent = "당신만의 특별한 도안이 완성되었습니다!";
+                                hasResult = true;
+                            }
 
-									// 새로고침 없이 완성된 도안 이미지로 즉시 교체 (캐시 방지용 타임스탬프 추가)
-									if (data.result_file) {
-										paintingResultImg.src = "/static/results/" + data.result_file + "?t=" + new Date().getTime();
-									}
+                            setTimeout(() => {
+                                alert('도안 생성이 완료되었습니다!');
+                                window.location.href = "#Painting";
+                            }, 500);
+                        }
 
-									setTimeout(() => {
-										alert('도안 생성이 완료되었습니다!');
-										window.location.href = "#Painting";
-									}, 500);
-								}
-
-								if (data.status === 'error') {
-									clearInterval(currentPollingInterval);
-									currentPollingInterval = null;
-									fileInput.disabled = false;
-									alert(data.message);
-								}
-							})
-							.catch(error => {
-								console.error('Error:', error);
-								clearInterval(currentPollingInterval);
-								currentPollingInterval = null;
-								fileInput.disabled = false;
-								alert('진행 상태를 확인하는 중 오류가 발생했습니다.');
-							});
-						}, 1000);
-					}
+                        if (data.status === 'error') {
+                            clearInterval(currentPollingInterval);
+                            currentPollingInterval = null;
+                            fileInput.disabled = false;
+                            alert(data.message);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        clearInterval(currentPollingInterval);
+                        currentPollingInterval = null;
+                        fileInput.disabled = false;
+                        alert('진행 상태를 확인하는 중 오류가 발생했습니다.');
+                    });
+                }, 1000);
+            }
 
 
-					function checkImageAndRedirect() {
-						// 현재 주소에 #Painting이 포함되어 있는지 확인
-						if (window.location.hash === '#Painting') {
+            function checkResultAndRedirect() {
+                // 현재 주소에 #Painting이 포함되어 있는지 확인
+                if (window.location.hash === '#Painting' && !hasResult) {
+                    alert("아직 생성된 도안이 없습니다. 사진을 먼저 업로드해주세요!");
+                    window.location.hash = '#Pictures';
+                }
+            }
 
-							// 이미지 객체를 생성해서 실제로 파일이 존재하는지 테스트
-							const testImg = new Image();
-							testImg.src = paintingResultImg.src;
+            // 페이지를 #Painting으로 직접 열었거나(북마크/새로고침) 뒤로/앞으로 가기로
+            // 진입한 경우를 대비한 안전장치
+            window.addEventListener('load', checkResultAndRedirect);
+            window.addEventListener('popstate', checkResultAndRedirect);
 
-							testImg.onerror = function() {
-								// 이미지를 불러오는데 실패하면(파일이 없으면) 알림 후 이동
-								alert("아직 생성된 도안이 없습니다. 사진을 먼저 업로드해주세요!");
-								window.location.hash = '#Pictures';
-							};
-						}
-					}
+            // 네비게이션의 "Painting" 클릭 시 결과가 있는지 먼저 확인해서,
+            // 아직 도안이 없으면 Pictures로 안내한다.
+            document.getElementById('nav-painting').addEventListener('click', function(e) {
+                e.preventDefault();
 
-					// 페이지를 #Painting으로 직접 열었거나(북마크/새로고침) 뒤로/앞으로 가기로
-					// 진입한 경우를 대비한 안전장치
-					window.addEventListener('load', checkImageAndRedirect);
-					window.addEventListener('popstate', checkImageAndRedirect);
+                if (hasResult) {
+                    window.location.hash = '#Painting';
+                } else {
+                    alert("아직 생성된 도안이 없습니다. 사진을 먼저 업로드해주세요!");
+                    window.location.hash = '#Pictures';
+                }
+            });
+        </script>
 
-					// 네비게이션의 "Painting" 클릭은 해시가 바뀌기 전에 먼저 이미지 존재 여부를
-					// 확인해서, main.js의 화면 전환 애니메이션이 진행 중일 때 두 번째 해시 변경이
-					// 겹쳐 Pictures와 Painting이 동시에 노출되는 경합(race condition)을 방지한다.
-					document.getElementById('nav-painting').addEventListener('click', function(e) {
-						e.preventDefault();
-
-						const testImg = new Image();
-						testImg.onload = function() {
-							window.location.hash = '#Painting';
-						};
-						testImg.onerror = function() {
-							alert("아직 생성된 도안이 없습니다. 사진을 먼저 업로드해주세요!");
-							window.location.hash = '#Pictures';
-						};
-						testImg.src = paintingResultImg.src;
-					});
-				</script>
-
-			</body>
-		</html>
+    </body>
+</html>
