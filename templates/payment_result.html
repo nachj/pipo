@@ -1,0 +1,29 @@
+<!DOCTYPE HTML>
+<html lang="ko">
+    <head>
+        <title>{{ "결제 완료" if success else "결제 실패" }} — Painto</title>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/fontawesome-all.min.css') }}" />
+        <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/modern.css') }}" />
+    </head>
+    <body>
+        <div class="result-page">
+            <div class="result-page-card">
+                {% if success %}
+                    <span class="result-page-icon result-page-icon-success"><i class="fas fa-check-circle"></i></span>
+                    <h1>결제가 완료되었습니다</h1>
+                    <p class="result-page-sub">
+                        주문번호 {{ payment.orderId }}<br>
+                        {{ "{:,}".format(payment.totalAmount) }}원 · {{ payment.method }}
+                    </p>
+                {% else %}
+                    <span class="result-page-icon result-page-icon-fail"><i class="fas fa-times-circle"></i></span>
+                    <h1>결제에 실패했습니다</h1>
+                    <p class="result-page-sub">{{ error_message }}</p>
+                {% endif %}
+                <a href="/" class="btn btn-primary">홈으로 돌아가기</a>
+            </div>
+        </div>
+    </body>
+</html>

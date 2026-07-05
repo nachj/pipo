@@ -523,6 +523,44 @@ a { color: inherit; text-decoration: none; }
     box-shadow: var(--shadow-sm);
 }
 
+.order-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 20px;
+    margin-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+    font-weight: 700;
+}
+
+.btn-block {
+    width: 100%;
+    justify-content: center;
+    margin-top: 20px;
+    border: none;
+    font: inherit;
+    cursor: pointer;
+}
+
+.pay-method-list { display: flex; flex-direction: column; gap: 10px; }
+
+.pay-method-list .btn-block { margin-top: 0; }
+
+.pay-method-btn { background: var(--bg); color: var(--text); border: 1px solid var(--border) !important; }
+
+.pay-method-btn:hover { background: var(--border); }
+
+.pay-method-kakao { background: #fee500 !important; color: #191919 !important; }
+
+.pay-method-naver { background: #03c75a !important; color: #fff !important; }
+
+.pay-method-note {
+    margin: 14px 0 0;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
 .form-row {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -627,4 +665,52 @@ a { color: inherit; text-decoration: none; }
     }
 
     .form-row { grid-template-columns: 1fr; }
+}
+
+/* ---------- Payment result page (payment_result.html) ---------- */
+
+.result-page {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+
+.result-page-card {
+    max-width: 420px;
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    padding: 40px 32px;
+    text-align: center;
+}
+
+.result-page-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    font-size: 2rem;
+    margin-bottom: 20px;
+}
+
+.result-page-icon-success { background: color-mix(in srgb, var(--primary) 15%, transparent); color: var(--primary); }
+
+.result-page-icon-fail { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); }
+
+.result-page-card h1 {
+    font-size: 1.3rem;
+    font-weight: 800;
+    margin: 0 0 12px;
+}
+
+.result-page-sub {
+    color: var(--text-muted);
+    margin: 0 0 28px;
+    line-height: 1.6;
 }

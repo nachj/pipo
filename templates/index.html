@@ -6,6 +6,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/fontawesome-all.min.css') }}" />
         <link rel="stylesheet" href="{{ url_for('static', filename='assets/css/modern.css') }}" />
+        <script src="https://js.tosspayments.com/v1"></script>
     </head>
     <body>
 
@@ -159,26 +160,25 @@
                         <h2>도안 주문하기</h2>
                     </div>
 
-                    <form class="modern-form" method="post" action="#" onsubmit="alert('현재 개발 진행 중입니다. 불편을 드려 죄송합니다.'); return false;">
-                        <div class="form-row">
-                            <div class="form-field">
-                                <label for="name">Name</label>
-                                <input type="text" name="name" id="name" />
-                            </div>
-                            <div class="form-field">
-                                <label for="email">Email</label>
-                                <input type="text" name="email" id="email" />
-                            </div>
-                            <div class="form-field full">
-                                <label for="message">Message</label>
-                                <textarea name="message" id="message" rows="4"></textarea>
-                            </div>
+                    <div class="modern-form">
+                        <div class="order-summary">
+                            <span>{{ product_name }}</span>
+                            <strong>{{ "{:,}".format(product_price) }}원</strong>
                         </div>
-                        <ul class="form-actions">
-                            <li><input type="submit" value="Send Message" /></li>
-                            <li><input type="reset" value="Reset" /></li>
-                        </ul>
-                    </form>
+
+                        <div class="pay-method-list">
+                            <button class="btn btn-block pay-method-btn" type="button" data-easypay="">
+                                <i class="fas fa-credit-card"></i> 카드로 결제
+                            </button>
+                            <button class="btn btn-block pay-method-btn pay-method-kakao" type="button" data-easypay="KAKAOPAY">
+                                카카오페이로 결제
+                            </button>
+                            <button class="btn btn-block pay-method-btn pay-method-naver" type="button" data-easypay="NAVERPAY">
+                                네이버페이로 결제
+                            </button>
+                        </div>
+                        <p class="pay-method-note">테스트 키로는 카드 결제만 실제로 진행됩니다. 카카오페이는 토스페이먼츠와 계약을 맺어야 테스트가 가능해요.</p>
+                    </div>
                 </div>
             </article>
 
@@ -333,6 +333,41 @@
                     alert("아직 생성된 도안이 없습니다. 사진을 먼저 업로드해주세요!");
                     window.location.hash = '#Pictures';
                 }
+            });
+
+            // 토스페이먼츠 결제 연동 (https://docs.tosspayments.com)
+            // 결제위젯(renderPaymentMethods)은 대시보드에서 결제수단 구성을 미리
+            // 설정해둔 "위젯 연동 키"가 있어야 동작해서, 가입 전 공개 테스트 키로는
+            // 결제수단 목록 조회가 401로 막힌다. 그래서 결제수단을 직접 지정해서
+            // 호출하는 tossPayments.requestPayment(method, options) 방식을 쓴다.
+            const tossClientKey = "{{ toss_client_key }}";
+            const productPrice = {{ product_price }};
+            const productName = "{{ product_name }}";
+            const tossPayments = TossPayments(tossClientKey);
+
+            function randomOrderId() {
+                if (window.crypto && window.crypto.randomUUID) return 'pipo_' + window.crypto.randomUUID();
+                return 'pipo_' + Date.now().toString(36) + Math.random().toString(36).slice(2);
+            }
+
+            document.querySelectorAll('.pay-method-btn').forEach(function (btn) {
+                btn.addEventListener('click', function () {
+                    const easyPay = btn.dataset.easypay || null;
+
+                    tossPayments.requestPayment('카드', {
+                        amount: productPrice,
+                        orderId: randomOrderId(),
+                        orderName: productName,
+                        successUrl: window.location.origin + '/payment/success',
+                        failUrl: window.location.origin + '/payment/fail',
+                        easyPay: easyPay || undefined,
+                    }).catch(function (err) {
+                        // 사용자가 결제창을 닫은 경우(USER_CANCEL)는 별도 안내 없이 무시
+                        if (err && err.code !== 'USER_CANCEL') {
+                            alert('결제 요청 중 오류가 발생했습니다: ' + (err.message || err.code));
+                        }
+                    });
+                });
             });
         </script>
 

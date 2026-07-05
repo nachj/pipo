@@ -1,7 +1,9 @@
 from flask import Flask, render_template, request, jsonify
 import os
 import threading
+import base64
 import numpy as np
+import requests
 from PIL import Image
 from segmentation import PipoPainter  # 작성하신 클래스 임포트
 
@@ -12,6 +14,19 @@ RESULT_FOLDER = 'static/results'
 
 for folder in [UPLOAD_FOLDER, RESULT_FOLDER]:
     os.makedirs(folder, exist_ok=True)
+
+# 토스페이먼츠 결제위젯 연동 (https://docs.tosspayments.com)
+# 아래 키는 토스페이먼츠가 공개적으로 배포하는 "가입 전 테스트용" 키 쌍이라
+# 회원가입 없이 바로 결제 흐름을 테스트할 수 있다. 실서비스 전환 시에는 반드시
+# 토스페이먼츠 대시보드에서 발급받은 라이브 키를 환경변수로 주입해서 교체해야 한다.
+TOSS_CLIENT_KEY = os.environ.get('TOSS_CLIENT_KEY', 'test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq')
+TOSS_SECRET_KEY = os.environ.get('TOSS_SECRET_KEY', 'test_sk_zXLkKEypNArWmo50nX3lmeaxYG5R')
+TOSS_CONFIRM_URL = 'https://api.tosspayments.com/v1/payments/confirm'
+
+PRODUCT_NAME = '피포페인팅 나만의 도안 제작'
+# 결제 금액은 클라이언트가 보낸 값을 그대로 믿지 않고 서버가 알고 있는 이 값과
+# 대조해서 검증한다 (금액 조작 방지 — 토스페이먼츠 공식 가이드 권고 사항).
+PRODUCT_PRICE = 15000
 
 # 사용자(IP)별 진행 상태를 따로 관리 -> {prefix: {"percent": ..., "message": ..., "status": ...}}
 progress_status = {}
@@ -79,7 +94,14 @@ def index():
     preview_name = f"{prefix}_preview.jpg"
     has_result = os.path.exists(os.path.join(RESULT_FOLDER, preview_name))
     initial_preview = f"results/{preview_name}" if has_result else None
-    return render_template('index.html', initial_preview=initial_preview, has_result=has_result)
+    return render_template(
+        'index.html',
+        initial_preview=initial_preview,
+        has_result=has_result,
+        toss_client_key=TOSS_CLIENT_KEY,
+        product_name=PRODUCT_NAME,
+        product_price=PRODUCT_PRICE,
+    )
 
 
 @app.route('/upload', methods=['POST'])
@@ -112,6 +134,54 @@ def upload_file():
 def get_progress():
     prefix = get_prefix()
     return jsonify(progress_status.get(prefix, {"percent": 0, "message": "대기 중...", "status": "idle"}))
+
+
+@app.route('/payment/success')
+def payment_success():
+    payment_key = request.args.get('paymentKey')
+    order_id = request.args.get('orderId')
+    amount = request.args.get('amount')
+
+    if not payment_key or not order_id or not amount:
+        return render_template('payment_result.html', success=False,
+                                error_message='잘못된 결제 응답입니다.')
+
+    # 클라이언트가 위젯에 넘긴 금액을 그대로 신뢰하지 않고, 서버가 알고 있는
+    # 실제 상품 가격과 대조해서 금액이 조작되지 않았는지 확인한다.
+    try:
+        amount_int = int(amount)
+    except ValueError:
+        amount_int = None
+
+    if amount_int != PRODUCT_PRICE:
+        return render_template('payment_result.html', success=False,
+                                error_message='결제 금액이 올바르지 않습니다.')
+
+    auth_header = 'Basic ' + base64.b64encode(f'{TOSS_SECRET_KEY}:'.encode()).decode()
+
+    try:
+        res = requests.post(
+            TOSS_CONFIRM_URL,
+            headers={'Authorization': auth_header, 'Content-Type': 'application/json'},
+            json={'paymentKey': payment_key, 'orderId': order_id, 'amount': amount_int},
+            timeout=10,
+        )
+    except requests.RequestException:
+        return render_template('payment_result.html', success=False,
+                                error_message='결제 승인 서버에 연결할 수 없습니다.')
+
+    if res.status_code == 200:
+        return render_template('payment_result.html', success=True, payment=res.json())
+
+    error_body = res.json() if res.content else {}
+    return render_template('payment_result.html', success=False,
+                            error_message=error_body.get('message', '결제 승인에 실패했습니다.'))
+
+
+@app.route('/payment/fail')
+def payment_fail():
+    message = request.args.get('message', '결제가 취소되었거나 실패했습니다.')
+    return render_template('payment_result.html', success=False, error_message=message)
 
 
 if __name__ == '__main__':
