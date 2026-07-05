@@ -342,4 +342,5 @@ def payment_fail():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', debug=True, port=5000, threaded=True)
+    debug_mode = os.environ.get('FLASK_DEBUG', '0') == '1'
+    app.run(host='0.0.0.0', debug=debug_mode, port=5000, threaded=True)
