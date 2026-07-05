@@ -718,7 +718,7 @@ a { color: inherit; text-decoration: none; }
 /* ---------- Auth pages (login.html / signup.html) ---------- */
 
 .auth-page {
-    min-height: 100vh;
+    min-height: calc(100vh - var(--header-h));
     display: flex;
     align-items: center;
     justify-content: center;

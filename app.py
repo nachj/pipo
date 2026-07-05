@@ -9,7 +9,7 @@ import numpy as np
 import requests
 from PIL import Image
 from segmentation import PipoPainter  # 작성하신 클래스 임포트
-from models import db, User
+from models import db, User, Design
 
 load_dotenv()
 
@@ -83,12 +83,15 @@ progress_lock = threading.Lock()
 
 
 def get_prefix():
-    """요청자의 IP를 파일명으로 쓸 수 있게 정리해서 prefix로 사용"""
+    """로그인 사용자는 user_id, 비로그인 사용자는 IP를 파일명 prefix로 사용.
+    로그인 사용자는 IP가 바뀌어도 항상 같은 prefix를 쓰게 되어 결과물을 계속 찾을 수 있다."""
+    if current_user.is_authenticated:
+        return f"user_{current_user.id}"
     ip = request.remote_addr or "unknown"
     return ip.replace('.', '_').replace(':', '_')
 
 
-def process_pipo_task(file_path, prefix):
+def process_pipo_task(file_path, prefix, user_id=None):
     """실제 segmentation.py의 기능을 수행하는 쓰레드 함수"""
     try:
         # 0. 초기화
@@ -120,9 +123,12 @@ def process_pipo_task(file_path, prefix):
         overlay_res, paper_res, rendered_res = painter.refine_layout_and_label(final_segments, stylized_img)
 
         # 결과물 저장 (사용자별 prefix를 파일명 앞에 붙여 서로 덮어쓰지 않게 함)
-        Image.fromarray(overlay_res).save(f"{RESULT_FOLDER}/{prefix}_overlay.jpg")
-        Image.fromarray(paper_res).save(f"{RESULT_FOLDER}/{prefix}_design.jpg")
-        Image.fromarray(rendered_res).save(f"{RESULT_FOLDER}/{prefix}_preview.jpg")
+        overlay_path = f"{RESULT_FOLDER}/{prefix}_overlay.jpg"
+        design_path = f"{RESULT_FOLDER}/{prefix}_design.jpg"
+        preview_path = f"{RESULT_FOLDER}/{prefix}_preview.jpg"
+        Image.fromarray(overlay_res).save(overlay_path)
+        Image.fromarray(paper_res).save(design_path)
+        Image.fromarray(rendered_res).save(preview_path)
 
         # 완료 (100%)
         progress_status[prefix].update({
@@ -132,6 +138,19 @@ def process_pipo_task(file_path, prefix):
             "result_file": f"{prefix}_preview.jpg" # 결과 파일명 전달
         })
 
+        # 로그인한 사용자는 업로드/변환 결과를 DB에도 남겨서, IP가 바뀌어도
+        # 로그인만 하면 마지막 결과물을 다시 찾을 수 있게 한다.
+        if user_id is not None:
+            with app.app_context():
+                db.session.add(Design(
+                    user_id=user_id,
+                    upload_path=file_path,
+                    overlay_path=overlay_path,
+                    design_path=design_path,
+                    preview_path=preview_path,
+                ))
+                db.session.commit()
+
     except Exception as e:
         print(f"Error: {e}")
         progress_status[prefix].update({"percent": 0, "message": f"오류 발생: {str(e)}", "status": "error"})
@@ -139,10 +158,20 @@ def process_pipo_task(file_path, prefix):
 
 @app.route('/')
 def index():
-    prefix = get_prefix()
-    preview_name = f"{prefix}_preview.jpg"
-    has_result = os.path.exists(os.path.join(RESULT_FOLDER, preview_name))
-    initial_preview = f"results/{preview_name}" if has_result else None
+    if current_user.is_authenticated:
+        # 로그인 사용자는 IP와 무관하게 DB에 남은 마지막 결과물을 보여준다.
+        design = (Design.query
+                  .filter_by(user_id=current_user.id)
+                  .order_by(Design.created_at.desc())
+                  .first())
+        has_result = design is not None and os.path.exists(design.preview_path)
+        initial_preview = os.path.relpath(design.preview_path, 'static') if has_result else None
+    else:
+        prefix = get_prefix()
+        preview_name = f"{prefix}_preview.jpg"
+        has_result = os.path.exists(os.path.join(RESULT_FOLDER, preview_name))
+        initial_preview = f"results/{preview_name}" if has_result else None
+
     return render_template(
         'index.html',
         initial_preview=initial_preview,
@@ -233,14 +262,26 @@ def upload_file():
         if current and current.get("status") == "processing":
             return jsonify({"result": "fail", "message": "이전 도안을 생성하는 중입니다. 완료 후 다시 시도해주세요."}), 409
 
+        # 비로그인 사용자는 무료 체험 1회만 허용. 이미 결과물이 있는 IP가 다시
+        # 업로드하려 하면 처리하지 않고 로그인을 유도한다.
+        if not current_user.is_authenticated:
+            preview_name = f"{prefix}_preview.jpg"
+            if os.path.exists(os.path.join(RESULT_FOLDER, preview_name)):
+                return jsonify({
+                    "result": "login_required",
+                    "message": "무료 체험은 1회만 가능합니다. 로그인하면 계속 이용하실 수 있어요."
+                }), 403
+
         file = request.files['photo']
         file_path = os.path.join(UPLOAD_FOLDER, f"{prefix}.jpg")
         file.save(file_path)
 
         progress_status[prefix] = {"percent": 0, "message": "업로드 완료, 처리 대기 중...", "status": "processing"}
 
+        user_id = current_user.id if current_user.is_authenticated else None
+
         # 백그라운드 쓰레드 시작
-        thread = threading.Thread(target=process_pipo_task, args=(file_path, prefix))
+        thread = threading.Thread(target=process_pipo_task, args=(file_path, prefix, user_id))
         thread.start()
 
     return jsonify({"result": "started"})

@@ -251,6 +251,12 @@
                 .then(data => {
                     if (data.result === 'started') {
                         startPolling();
+                    } else if (data.result === 'login_required') {
+                        fileInput.disabled = false;
+                        fileInput.value = '';
+                        if (confirm((data.message || '로그인이 필요합니다.') + '\n로그인 페이지로 이동할까요?')) {
+                            window.location.href = "{{ url_for('login') }}";
+                        }
                     } else {
                         fileInput.disabled = false;
                         alert(data.message || '업로드에 실패했습니다.');

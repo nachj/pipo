@@ -20,3 +20,17 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+
+class Design(db.Model):
+    __tablename__ = 'designs'
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    upload_path = db.Column(db.String(255), nullable=False)
+    overlay_path = db.Column(db.String(255))
+    design_path = db.Column(db.String(255))
+    preview_path = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime, server_default=db.func.now())
+
+    user = db.relationship('User', backref=db.backref('designs', lazy=True))
