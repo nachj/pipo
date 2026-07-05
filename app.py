@@ -3,7 +3,6 @@ import os
 import threading
 import numpy as np
 from PIL import Image
-import shutil
 from segmentation import PipoPainter  # 작성하신 클래스 임포트
 
 app = Flask(__name__)
@@ -12,12 +11,7 @@ UPLOAD_FOLDER = 'static/uploads'
 RESULT_FOLDER = 'static/results'
 
 for folder in [UPLOAD_FOLDER, RESULT_FOLDER]:
-    if os.path.exists(folder):
-        # 폴더가 존재하면 내부 파일까지 모두 삭제
-        shutil.rmtree(folder)
-    
-    # 다시 깨끗한 상태로 생성
-    os.makedirs(folder)
+    os.makedirs(folder, exist_ok=True)
 
 # 사용자(IP)별 진행 상태를 따로 관리 -> {prefix: {"percent": ..., "message": ..., "status": ...}}
 progress_status = {}
@@ -35,7 +29,7 @@ def process_pipo_task(file_path, prefix):
     try:
         # 0. 초기화
         progress_status[prefix].update({"percent": 5, "message": "AI 모델 초기화 중...", "status": "processing"})
-        painter = PipoPainter(k_colors=32, n_segments=3000)
+        painter = PipoPainter(k_colors=24, n_segments=3000)
 
         # 1. 사진 로드 및 업사이징 (10%)
         progress_status[prefix].update({"percent": 10, "message": "[1/5] 사진 로드 및 고해상도 변환 중..."})
@@ -82,7 +76,10 @@ def process_pipo_task(file_path, prefix):
 @app.route('/')
 def index():
     prefix = get_prefix()
-    return render_template('index.html', initial_preview=f"results/{prefix}_preview.jpg")
+    preview_name = f"{prefix}_preview.jpg"
+    has_result = os.path.exists(os.path.join(RESULT_FOLDER, preview_name))
+    initial_preview = f"results/{preview_name}" if has_result else None
+    return render_template('index.html', initial_preview=initial_preview, has_result=has_result)
 
 
 @app.route('/upload', methods=['POST'])

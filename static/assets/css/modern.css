@@ -1,0 +1,630 @@
+/* Painto — modern theme */
+
+:root {
+    --bg: #f7f7fb;
+    --surface: #ffffff;
+    --text: #16161f;
+    --text-muted: #6b7280;
+    --border: #e7e7ef;
+    --primary: #6c5ce7;
+    --primary-dark: #5643d6;
+    --accent: #ff6b9d;
+    --radius-lg: 20px;
+    --radius-md: 14px;
+    --radius-sm: 10px;
+    --shadow-sm: 0 2px 8px rgba(22, 22, 31, 0.05);
+    --shadow-md: 0 12px 32px rgba(22, 22, 31, 0.08);
+    --shadow-lg: 0 24px 60px rgba(22, 22, 31, 0.12);
+    --header-h: 72px;
+    --gradient: linear-gradient(120deg, var(--primary), var(--accent));
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg: #121218;
+        --surface: #1b1b24;
+        --text: #f2f2f6;
+        --text-muted: #9a9aa8;
+        --border: #2c2c38;
+        --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.25);
+        --shadow-md: 0 12px 32px rgba(0, 0, 0, 0.35);
+        --shadow-lg: 0 24px 60px rgba(0, 0, 0, 0.45);
+    }
+}
+
+* { box-sizing: border-box; }
+
+[hidden] { display: none !important; }
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Pretendard", "Apple SD Gothic Neo",
+        "Malgun Gothic", "Noto Sans KR", sans-serif;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+}
+
+img { max-width: 100%; display: block; }
+
+a { color: inherit; text-decoration: none; }
+
+.sr-only {
+    position: absolute;
+    width: 1px; height: 1px;
+    padding: 0; margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+/* ---------- Header ---------- */
+
+.site-header {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    height: var(--header-h);
+    display: flex;
+    align-items: center;
+    background: color-mix(in srgb, var(--surface) 85%, transparent);
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+}
+
+.nav-container {
+    width: 100%;
+    max-width: 1120px;
+    margin: 0 auto;
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 1.15rem;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+}
+
+.logo-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+    background: var(--gradient);
+    color: #fff;
+    font-size: 0.9rem;
+}
+
+.site-nav {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.nav-link {
+    padding: 8px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    color: var(--text-muted);
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+.nav-link:hover { color: var(--text); background: var(--border); }
+
+.nav-toggle {
+    display: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 1rem;
+    cursor: pointer;
+}
+
+/* ---------- Hero ---------- */
+
+.hero {
+    position: relative;
+    overflow: hidden;
+    padding: 96px 24px 88px;
+    text-align: center;
+    isolation: isolate;
+    scroll-margin-top: var(--header-h);
+}
+
+.hero::before,
+.hero::after {
+    content: "";
+    position: absolute;
+    width: 480px;
+    height: 480px;
+    border-radius: 50%;
+    filter: blur(90px);
+    opacity: 0.25;
+    z-index: -1;
+}
+
+.hero::before {
+    background: var(--primary);
+    top: -220px;
+    left: -160px;
+}
+
+.hero::after {
+    background: var(--accent);
+    top: -180px;
+    right: -180px;
+}
+
+.hero-inner {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
+.eyebrow {
+    display: inline-block;
+    padding: 6px 16px;
+    border-radius: 999px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--primary);
+    letter-spacing: 0.03em;
+    margin-bottom: 20px;
+}
+
+.hero h1 {
+    font-size: clamp(2rem, 5vw, 3.1rem);
+    line-height: 1.25;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0 0 20px;
+}
+
+.text-gradient {
+    background: var(--gradient);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+}
+
+.hero-sub {
+    color: var(--text-muted);
+    font-size: 1.05rem;
+    margin: 0 auto 32px;
+    max-width: 520px;
+}
+
+.hero-actions {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+/* ---------- Buttons ---------- */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 13px 26px;
+    border-radius: 999px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    border: 1px solid transparent;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+}
+
+.btn:hover { transform: translateY(-2px); }
+
+.btn-primary {
+    background: var(--gradient);
+    color: #fff;
+    box-shadow: var(--shadow-md);
+}
+
+.btn-ghost {
+    background: var(--surface);
+    color: var(--text);
+    border-color: var(--border);
+}
+
+.btn-ghost:hover { background: var(--border); }
+
+/* ---------- Sections ---------- */
+
+.section { padding: 88px 24px; scroll-margin-top: var(--header-h); }
+
+.section-alt { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+
+.section-inner { max-width: 1120px; margin: 0 auto; }
+
+.section-inner.narrow { max-width: 720px; }
+
+.section-heading { text-align: center; margin-bottom: 48px; }
+
+.section-tag {
+    display: inline-block;
+    font-size: 0.8rem;
+    font-weight: 800;
+    color: var(--primary);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+}
+
+.section-heading h2 {
+    font-size: clamp(1.5rem, 3vw, 2.1rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    margin: 0;
+}
+
+.section-desc {
+    color: var(--text-muted);
+    text-align: center;
+    max-width: 640px;
+    margin: 0 auto;
+}
+
+.pull-quote {
+    text-align: center;
+    font-size: 1.2rem;
+    font-weight: 700;
+    margin: 48px auto 16px;
+    max-width: 640px;
+}
+
+/* ---------- Steps grid ---------- */
+
+.steps-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+}
+
+.step-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.step-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
+
+.step-card.featured {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: 1.1fr 1fr;
+    align-items: center;
+    gap: 32px;
+    padding: 32px;
+}
+
+.step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--gradient);
+    color: #fff;
+    font-size: 0.8rem;
+    font-weight: 800;
+    margin-bottom: 14px;
+}
+
+.step-card h3 {
+    font-size: 0.98rem;
+    font-weight: 700;
+    margin: 0 0 14px;
+}
+
+.step-card img {
+    width: 100%;
+    border-radius: var(--radius-md);
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.step-card.featured img {
+    max-height: 280px;
+    aspect-ratio: auto;
+    object-fit: cover;
+}
+
+.step-card.featured .step-copy p {
+    color: var(--text-muted);
+    margin: 12px 0 0;
+}
+
+/* ---------- Upload / preview cards ---------- */
+
+.preview-card {
+    display: block;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    margin-bottom: 28px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+}
+
+/* object-fit: cover였을 때는 세로로 긴 사진을 올리면 4:3 박스에 맞추려고
+   위아래를 잘라내 얼굴이나 다리가 잘려 보이는 문제가 있었다. 사진 전체가
+   보이도록 contain으로 바꾸고, 남는 여백은 배경색으로 채운다. */
+.preview-card img { width: 100%; aspect-ratio: 4 / 3; object-fit: contain; }
+
+.upload-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 28px;
+    box-shadow: var(--shadow-sm);
+}
+
+.dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    text-align: center;
+    padding: 40px 20px;
+    border-radius: var(--radius-md);
+    border: 2px dashed var(--border);
+    cursor: pointer;
+    transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.dropzone:hover {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 6%, transparent);
+}
+
+.dropzone-icon {
+    width: 52px;
+    height: 52px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--gradient);
+    color: #fff;
+    font-size: 1.3rem;
+    margin-bottom: 6px;
+}
+
+.dropzone-title { font-weight: 700; font-size: 1rem; }
+
+.dropzone-sub { color: var(--text-muted); font-size: 0.85rem; }
+
+.progress-wrapper { display: none; margin-top: 24px; }
+
+.progress-track {
+    width: 100%;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--border);
+    overflow: hidden;
+}
+
+.progress-fill {
+    width: 0%;
+    height: 100%;
+    background: var(--gradient);
+    border-radius: 999px;
+    transition: width 0.3s ease;
+}
+
+.progress-text {
+    margin: 10px 0 0;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--primary);
+    text-align: center;
+}
+
+/* ---------- Result / Painting ---------- */
+
+/* 업로드하는 사진마다 가로세로 비율이 제각각이라 width:100%; height:auto로만
+   두면 세로 사진에서 카드가 화면 몇 배 높이로 늘어나 버린다. Pictures
+   섹션의 미리보기 카드와 같은 비율로 고정하되, 최종 결과물은 잘리면 안 되니
+   object-fit은 cover 대신 contain을 써서 레터박스로 보여준다.
+   아직 생성된 결과가 없을 때는 img 대신 .result-empty 안내를 보여주는데,
+   어느 쪽이 보이든 카드 크기가 흔들리지 않도록 비율을 img가 아니라
+   카드(.result-card) 자체에 고정한다. */
+.result-card {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 4 / 3;
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--border);
+    margin-bottom: 24px;
+    background: var(--bg);
+}
+
+.result-card img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+.result-empty {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 24px;
+    text-align: center;
+    color: var(--text-muted);
+}
+
+.result-empty-icon {
+    width: 56px;
+    height: 56px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--border);
+    font-size: 1.4rem;
+    margin-bottom: 6px;
+}
+
+.result-empty-title { font-weight: 700; color: var(--text); }
+
+.result-empty-sub { font-size: 0.85rem; }
+
+.result-hint {
+    text-align: center;
+    color: var(--text-muted);
+    margin-bottom: 28px;
+}
+
+.result-hint i { color: var(--accent); margin-right: 6px; }
+
+/* ---------- Form ---------- */
+
+.modern-form {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 32px;
+    box-shadow: var(--shadow-sm);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 20px;
+}
+
+.form-field { display: flex; flex-direction: column; gap: 6px; }
+
+.form-field.full { grid-column: 1 / -1; }
+
+.form-field label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-muted);
+}
+
+.form-field input,
+.form-field textarea {
+    font: inherit;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.form-field input:focus,
+.form-field textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent);
+}
+
+.form-actions {
+    display: flex;
+    gap: 12px;
+    margin-top: 4px;
+    list-style: none;
+    padding: 0;
+}
+
+.form-actions input[type="submit"],
+.form-actions input[type="reset"] {
+    font: inherit;
+    font-weight: 700;
+    padding: 12px 24px;
+    border-radius: 999px;
+    border: 1px solid transparent;
+    cursor: pointer;
+}
+
+.form-actions input[type="submit"] {
+    background: var(--gradient);
+    color: #fff;
+    box-shadow: var(--shadow-md);
+}
+
+.form-actions input[type="reset"] {
+    background: var(--surface);
+    border-color: var(--border);
+    color: var(--text);
+}
+
+/* ---------- Footer ---------- */
+
+.site-footer {
+    padding: 32px 24px;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    border-top: 1px solid var(--border);
+}
+
+/* ---------- Responsive ---------- */
+
+@media (max-width: 760px) {
+    .site-nav {
+        position: absolute;
+        top: var(--header-h);
+        left: 0;
+        right: 0;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        flex-direction: column;
+        align-items: stretch;
+        padding: 8px 16px 16px;
+        gap: 2px;
+        display: none;
+        box-shadow: var(--shadow-md);
+    }
+
+    .site-nav.is-open { display: flex; }
+
+    .nav-link { padding: 12px 14px; border-radius: var(--radius-sm); }
+
+    .nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
+
+    .step-card.featured {
+        grid-template-columns: 1fr;
+    }
+
+    .form-row { grid-template-columns: 1fr; }
+}
