@@ -5,3 +5,6 @@ __pycache__/
 # 사용자별(IP prefix) 업로드/생성 결과물 — 실행할 때마다 새로 생기는 런타임 산출물이라 버전 관리 대상이 아님
 static/uploads/*
 static/results/*
+
+# 워터마크 없는 고화질 원본(비공개, 결제 확인 후 /download/<kind>로만 제공)
+private/results/*

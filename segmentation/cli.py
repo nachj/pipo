@@ -18,7 +18,8 @@ def main():
     if not os.path.exists(result_dir):
         os.makedirs(result_dir)
 
-    painter = PipoPainter(k_colors=24, n_segments=3000)
+    # 등급별 정책 검증용: tier를 바꿔가며(basic/standard/premium) 결과를 비교해볼 수 있다.
+    painter = PipoPainter(tier="standard")
     pbar = tqdm(total=5, desc="피포페인팅 도안 제작 중")
 
     # 1. 사진 로드 및 업사이징

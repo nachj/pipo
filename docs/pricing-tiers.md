@@ -1,0 +1,101 @@
+# 가격대별 스펙 (pipo 페인팅 도안)
+
+담당: [pipo-planning](../.claude/agents/pipo-planning.md) 작성/관리. 구현은 [pipo-backend](../.claude/agents/pipo-backend.md)/[pipo-segmentation](../.claude/agents/pipo-segmentation.md), 검증은 [pipo-qa](../.claude/agents/pipo-qa.md)가 담당한다.
+
+이 문서는 코드 주석이 아니라 팀이 합의한 스펙의 단일 출처(source of truth)다. 파라미터를 바꿀 때는
+이 문서를 먼저 갱신하고 나서 구현에 반영한다.
+
+현재 `app.py`는 아직 등급 분기 로직이 없다(단일 가격 `PRODUCT_PRICE=15000`, `PipoPainter(k_colors=24, n_segments=3000)` 하드코딩). 아래 스펙은 이번 사이클에서 backend/segmentation이 구현할 목표 상태다.
+
+## 1. 하드 컨스트레인트 (타협 불가)
+
+1. **손으로 칠할 수 있는 영역 크기.** 등급이 올라가도 영역이 손으로 칠하기 어려울 만큼 잘게 쪼개져서는 안 된다. 색상 수가 늘어난다고 영역 개수/세밀함이 비례해서 폭증하면 안 된다.
+2. **등급 간 완만한 소요시간 증가.** PREMIUM이 BASIC보다 체감상 훨씬 오래 걸리거나 훨씬 복잡해지면 안 된다. 등급 간 총 영역 개수(소요시간 대리 지표)는 완만하게만 늘어야 한다.
+3. **정교함의 차이는 색상 수에서만 나온다.** BASIC은 더 추상적으로, PREMIUM은 더 정교하게 보이되, 그 차이는 팔레트 다양성(색상 수)에서 나와야지 공간 분할을 더 잘게 쪼개는 데서 나오면 안 된다.
+
+이 3가지를 지키기 위한 설계 원칙: **공간 분할/병합 파라미터(`n_segments`, `min_area`, `color_merge_threshold`, 번호 생략 임계값)는 등급과 무관하게 고정한다.** 등급별로 바뀌는 값은 오직 `k_colors`(팔레트 크기) 하나뿐이다.
+
+## 2. 등급별 스펙
+
+| 등급 | 가격 | k_colors (팔레트 크기) | 목표 인상 |
+|---|---|---|---|
+| BASIC | 20,000원 | 16 | 좀 더 추상적/단순화된 느낌 |
+| STANDARD | 40,000원 | 24 | 중간 정교함 |
+| PREMIUM | 60,000원 | 32 | 좀 더 정교하고 섬세한 느낌 |
+
+서버 측 가격→k_colors 매핑(예시, `pipo-backend`가 구현):
+
+```python
+TIER_BY_PRICE = {
+    20000: {"name": "BASIC", "k_colors": 16},
+    40000: {"name": "STANDARD", "k_colors": 24},
+    60000: {"name": "PREMIUM", "k_colors": 32},
+}
+```
+
+클라이언트가 보낸 등급/가격이 아니라 **결제 승인 시 서버가 검증한 금액**을 키로 이 테이블을 조회해 `k_colors`를 결정한다(금액 조작으로 상위 등급 결과물을 받아가지 못하도록).
+
+## 3. 공통 파라미터 (모든 등급 동일, 등급별로 바꾸지 않음)
+
+| 파라미터 | 값 | 위치 | 비고 |
+|---|---|---|---|
+| `n_segments` (SLIC 초기 분할 수) | 3000 | `segment.py`의 `generate_and_merge_segments` 호출부 (`PipoPainter`) | 등급별로 늘리지 않는다 — 늘리면 공간 분할 자체가 세밀해져 컨스트레인트 3 위반 |
+| `min_area` (자투리 흡수 임계값) | 300 (px) | `segment.py::generate_and_merge_segments` 기본값 | 현재값 유지. 아래 4장 QA 측정에서 PREMIUM 영역이 손으로 칠하기 어렵다고 판단되면 3개 등급에 동시에 350 정도로 소폭 보수화 검토 (등급별로 다르게 잡지 않는다) |
+| `color_merge_threshold` (LAB deltaE) | 5 | `render.py::process_rendering`, `segment.py::generate_and_merge_segments` 기본값 | 색상 팔레트 병합과 공간 인접 구획 병합에 동일 값 사용 |
+| 번호 생략 임계값 | `contourArea < 50` 또는 `M["m00"] <= 40` | `layout.py::refine_layout_and_label` | 등급 무관 고정. 이 값과 `min_area`(300) 사이 구간의 영역이 "번호 없는 눈에 보이는 구획"으로 남는지는 QA 항목 3에서 별도 확인 |
+
+## 4. 등급별 목표 총 영역 개수 범위 (QA 대리 지표)
+
+동일한 원본 이미지로 BASIC/STANDARD/PREMIUM을 각각 돌렸을 때, `layout.py` 처리 후 최종 영역(번호가 매겨지는 palette 구획) 개수를 `N_basic`, `N_standard`, `N_premium`이라 하면:
+
+| 지표 | 목표 |
+|---|---|
+| 단조 증가 | `N_basic ≤ N_standard ≤ N_premium` (역전 없음) |
+| STANDARD 상한 | `N_standard ≤ N_basic × 1.35` |
+| PREMIUM 상한 | `N_premium ≤ N_basic × 1.55` |
+| 등급 간 완만함 | `(N_premium − N_standard) ≤ (N_standard − N_basic) × 1.5` 정도로, PREMIUM 구간에서 증가폭이 급격히 커지지 않는지 확인 |
+
+위 배율(1.35 / 1.55)은 아래 "4.1 실측 기준선"에서 재측정한 값을 근거로 재조정한 것이다(최초 작성 시의 1.15 / 1.30은 구현 전 목표치였고, `n_segments` 등급 통일(`unify-n-segments-across-tiers`) 적용 후 실측해보니 대부분의 샘플에서 초과했다 — 아래 4.1 참고). `k_colors`만 늘어나도 색상 경계가 늘어 인접 구획 병합(`color_merge_threshold`) 결과가 미세하게 달라지므로, 총 영역 개수가 어느 정도 늘어나는 것 자체는 정상이다. **다만 이 상한은 "완만하게"라는 하드 컨스트레인트를 수치화한 것이지, 실측치에 맞춰 계속 끌어올려도 되는 값이 아니다** — 재측정 시 상한을 다시 초과한다면 `color_merge_threshold`나 `n_segments`가 등급 간에 암묵적으로 다르게 작동하고 있지 않은지(구현 버그)를 먼저 의심한다. 파라미터를 바꿀 때마다 `python -m segmentation.qa_baseline`(5장 참고)으로 재측정하고, 이 표와 4.1 기준선을 갱신한다.
+
+### 4.1 실측 기준선 (baseline)
+
+`unify-n-segments-across-tiers` 적용(등급 무관 `n_segments=3000` 고정) 후, `segmentation/qa_baseline.py`로 서로 다른 해상도/화질의 샘플 이미지 4장에 대해 BASIC/STANDARD/PREMIUM을 각각 돌려 측정한 값이다(측정일 2026-07-11, `--width 1800` 기본값 사용).
+
+| 샘플 이미지 | 원본 해상도 | N_basic | N_standard | N_premium | N_standard/N_basic | N_premium/N_basic | (N_premium−N_standard)/(N_standard−N_basic) |
+|---|---|---|---|---|---|---|---|
+| `211_36_147_192.jpg` (실사진) | 1737×3088 | 529 | 618 | 653 | 1.168 | 1.234 | 0.393 |
+| `user_5.jpg` (실사진) | 4608×3072 | 166 | 203 | 214 | 1.223 | 1.289 | 0.297 |
+| `122_34_142_96.jpg` (저해상도 업스케일) | 301×167 | 239 | 312 | 358 | 1.305 | 1.498 | 0.630 |
+| `127_0_0_1.jpg` (초저해상도 업스케일, 참고용·기준선 제외) | 160×120 | 609 | 650 | 609 | 1.067 | 1.000 | −1.000 (단조 증가 위반: `N_premium(609) < N_standard(650)`) |
+
+해석:
+
+- 실사진 2장(`211_36_147_192.jpg`, `user_5.jpg`)과 저해상도 업스케일 1장(`122_34_142_96.jpg`)은 모두 단조 증가(`N_basic ≤ N_standard ≤ N_premium`)를 만족했고, 배율은 각각 최대 1.305 / 1.498(`122_34_142_96.jpg`)까지 관측됐다. 위 4장의 상한(1.35 / 1.55)은 이 최댓값에 약간의 여유를 두고 잡은 값이다.
+- 등급 간 완만함 지표(`(N_premium−N_standard)/(N_standard−N_basic)`)는 0.297~0.630 범위로, 목표 상한 1.5에 비해 충분히 여유가 있어 이 지표는 조정하지 않았다.
+- `127_0_0_1.jpg`(160×120을 1800px 폭으로 11배 이상 업스케일한 초저해상도 이미지)에서는 오히려 `N_premium`이 `N_standard`보다 작게 나와 단조 증가가 깨졌다. 실제 서비스 입력으로는 비현실적으로 작은 원본(썸네일급)이라 기준선에서는 제외했지만, 극저해상도 원본에서 등급 간 순서가 뒤집힐 수 있다는 것은 알려진 한계로 남겨둔다 — 실제 서비스에서 업로드 최소 해상도 가드가 없다면 향후 사이클에서 별도 이슈로 다룰 것.
+- 재측정은 `python -m segmentation.qa_baseline --image <경로>`로 반복 가능하다(5장 참고). 파라미터(`n_segments`, `min_area`, `color_merge_threshold`)를 바꾼 뒤에는 반드시 이 표를 다시 뽑아 위 상한과 비교하고, 이 절의 표를 실측치로 갱신한다.
+
+## 5. QA가 검증할 대리 지표 요약표
+
+| 지표 | 정의 | 측정 방법 | 판정 기준 |
+|---|---|---|---|
+| 총 영역 개수 | 최종 palette 구획(번호가 매겨지는 단위) 수 | `layout.py` 처리 후 고유 구획 라벨 수 카운트 | 3장의 단조 증가 + 배율 상한 |
+| 최소 영역 면적 | 전체 구획 중 가장 작은 구획의 픽셀 면적 | 구획별 면적(픽셀 수) 중 최솟값 | 구조적으로 `min_area`(300px) 이상이어야 함. 미만이면 `_absorb_small_regions` 파이프라인 버그로 보고 |
+| 평균 영역 면적 | 이미지 전체 픽셀 수 ÷ 총 영역 개수 | 계산값 | 등급 간 완만히만 감소해야 함(총 영역 개수 상한과 사실상 동치 지표이므로 교차 검증용) |
+| 최소 영역 비율 | 면적이 `min_area`의 1.5배(450px) 이하인 "작은 영역"이 전체 구획 수에서 차지하는 비율 | 구획별 면적 분포에서 450px 이하 구획 수 / 총 구획 수 | 등급이 올라갈수록 이 비율이 급격히 늘어나지 않아야 함(예: PREMIUM이 BASIC 대비 상대적으로 급증하면 사용성 저하 신호로 보고) |
+| 실제 팔레트 색상 수 | `render.py::process_rendering`이 반환하는 병합 후 실제 색상 수 | `palette_rgb` 길이 | `BASIC 실제색상수 < STANDARD 실제색상수 < PREMIUM 실제색상수`, 각각 목표 k_colors(16/24/32) 이하 |
+
+위 5개 지표는 `segmentation/qa_baseline.py`로 한 번에 뽑을 수 있다(동일 원본 이미지로 BASIC/STANDARD/PREMIUM을 순서대로 돌려 총 영역 개수/최소 영역 면적/평균 영역 면적/작은 영역 비율/실제 팔레트 색상 수를 표로 출력하고, 4장의 배율 상한과 비교할 수 있도록 등급 간 비율도 함께 계산해준다):
+
+```bash
+python -m segmentation.qa_baseline --image static/uploads/<샘플이미지>.jpg
+# 등급 일부만 보고 싶을 때
+python -m segmentation.qa_baseline --image static/uploads/<샘플이미지>.jpg --tiers basic premium
+```
+
+파라미터(`n_segments`, `min_area`, `color_merge_threshold` 등)를 바꿀 때마다 대표 샘플 이미지 몇 장으로 이 스크립트를 다시 돌려서 4.1 실측 기준선과 4장의 배율 상한이 여전히 지켜지는지 확인한다(수작업 재측정 불필요). 그 외 QA 절차(스크린샷 비교 등)는 [pipo-qa](../.claude/agents/pipo-qa.md) 문서의 "검증 방법"을 따른다.
+
+## 6. 변경 이력
+
+- 2026-07-11: 최초 작성. BASIC/STANDARD/PREMIUM 등급표, 공통 파라미터, 목표 영역 개수 범위, QA 대리 지표 정리. `app.py`의 실제 등급 분기 구현은 아직 미완료(추적: pipo-backend/pipo-segmentation).
+- 2026-07-11: `n_segments` 등급 무관 고정(`unify-n-segments-across-tiers`, `PipoPainter.TIER_PRESETS`에 3개 등급 모두 `n_segments=3000`) 적용 후 `segmentation/qa_baseline.py`로 재측정한 실측 기준선을 4.1절에 추가. 이를 근거로 4장의 배율 상한을 낙관치였던 `1.15 / 1.30`에서 실측 근거의 `1.35 / 1.55`로 현실화(단조 증가 + 완만한 증가라는 하드 컨스트레인트 자체는 변경 없음). 5장에 `qa_baseline.py` 사용법을 추가해 다음 파라미터 변경 시에도 수작업 재측정 없이 QA가 재사용할 수 있게 함. 초저해상도(160×120) 업스케일 샘플 1건에서 단조 증가가 깨지는 것을 관측했으나 실제 서비스 입력 범위를 벗어난 것으로 보고 기준선에서는 제외(4.1절 참고, 향후 이슈로 별도 추적 권장).

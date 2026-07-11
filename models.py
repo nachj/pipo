@@ -31,6 +31,12 @@ class Design(db.Model):
     overlay_path = db.Column(db.String(255))
     design_path = db.Column(db.String(255))
     preview_path = db.Column(db.String(255))
+    # 결제 확인(payment/success)이 이 사용자의 가장 최근 도안에 대해 완료됐는지
+    # 여부. 워터마크 없는 원본 다운로드(/download/<kind>) 게이팅에 사용한다.
+    # NOTE: create_all()은 이미 존재하는 테이블에 새 컬럼을 추가해주지 않으므로,
+    # 기존 DB에 이 컬럼을 반영하려면 수동 마이그레이션(ALTER TABLE)이나
+    # Flask-Migrate 도입이 필요하다. 다음 사이클 개선 과제로 남겨둔다.
+    paid = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     user = db.relationship('User', backref=db.backref('designs', lazy=True))

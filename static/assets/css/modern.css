@@ -478,6 +478,116 @@ a { color: inherit; text-decoration: none; }
     object-fit: contain;
 }
 
+/* ---------- Before/After 비교 슬라이더 ----------
+   반투명 오버레이로 두 이미지를 겹치는 대신, "원본" 이미지를 도안 이미지
+   위에 그대로 쌓아두고 clip-path로 왼쪽 일부만 보이게 잘라낸다. 두 이미지
+   모두 같은 상자(.compare-slider) 기준으로 object-fit: contain이 적용되기
+   때문에 슬라이더를 움직여도 확대/축소 배율이 어긋나지 않는다. */
+.compare-slider {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    cursor: ew-resize;
+    touch-action: none;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.compare-slider.is-single {
+    cursor: default;
+}
+
+.compare-img {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    -webkit-user-drag: none;
+}
+
+.compare-img-after {
+    z-index: 1;
+}
+
+.compare-img-before {
+    z-index: 2;
+    clip-path: inset(0 50% 0 0);
+    will-change: clip-path;
+}
+
+.compare-slider.is-single .compare-img-before,
+.compare-slider.is-single .compare-slider-handle,
+.compare-slider.is-single .compare-label {
+    display: none;
+}
+
+.compare-slider-handle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 0;
+    z-index: 3;
+    pointer-events: none;
+}
+
+.compare-slider-handle::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 3px;
+    margin-left: -1.5px;
+    background: #fff;
+    box-shadow: 0 0 0 1px rgba(22, 22, 31, 0.18);
+}
+
+.compare-slider-handle-grip {
+    position: absolute;
+    top: 50%;
+    left: 0;
+    transform: translate(-50%, -50%);
+    width: 40px;
+    height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: #fff;
+    color: var(--primary);
+    box-shadow: var(--shadow-lg);
+    pointer-events: auto;
+    cursor: ew-resize;
+}
+
+.compare-label {
+    position: absolute;
+    top: 12px;
+    z-index: 3;
+    padding: 4px 10px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: #fff;
+    background: rgba(22, 22, 31, 0.55);
+    border-radius: 999px;
+    pointer-events: none;
+}
+
+.compare-label-before { left: 12px; }
+.compare-label-after { right: 12px; }
+
+.compare-hint {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin: -12px 0 20px;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    text-align: center;
+}
+
 .result-empty {
     display: flex;
     flex-direction: column;
@@ -512,6 +622,58 @@ a { color: inherit; text-decoration: none; }
 }
 
 .result-hint i { color: var(--accent); margin-right: 6px; }
+
+/* 결과 카드 옆에 노출하는 팔레트(사용 색상 수 + 스와치) 미리보기.
+   결제 전에도 "몇 가지 물감이 필요한지"를 바로 체감할 수 있게 해준다. */
+.palette-panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-sm);
+    padding: 18px 20px;
+    margin-bottom: 24px;
+}
+
+.palette-summary {
+    margin: 0 0 12px;
+    font-weight: 700;
+    color: var(--text);
+}
+
+.palette-summary i { color: var(--accent); margin-right: 6px; }
+
+.palette-summary strong { color: var(--primary); }
+
+.palette-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.palette-swatch {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px 4px 4px;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: var(--bg);
+}
+
+.palette-swatch-color {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    flex-shrink: 0;
+}
+
+.palette-swatch-hex {
+    font-size: 0.72rem;
+    font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    color: var(--text-muted);
+    letter-spacing: 0.02em;
+}
 
 /* ---------- Form ---------- */
 

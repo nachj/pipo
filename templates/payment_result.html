@@ -17,6 +17,12 @@
                         주문번호 {{ payment.orderId }}<br>
                         {{ "{:,}".format(payment.totalAmount) }}원 · {{ payment.method }}
                     </p>
+                    <p class="result-page-sub">이제 워터마크 없는 고화질 원본을 내려받으실 수 있어요.</p>
+                    <div class="hero-actions">
+                        <a href="/download/preview" class="btn btn-primary">미리보기 원본 다운로드</a>
+                        <a href="/download/design" class="btn btn-primary">도안(라인) 원본 다운로드</a>
+                        <a href="/download/overlay" class="btn btn-primary">오버레이 원본 다운로드</a>
+                    </div>
                 {% else %}
                     <span class="result-page-icon result-page-icon-fail"><i class="fas fa-times-circle"></i></span>
                     <h1>결제에 실패했습니다</h1>
