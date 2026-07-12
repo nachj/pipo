@@ -492,7 +492,7 @@
                         // 그 사정을 안내한다(8.3절).
                         const tierChangeNotice = '등급을 바꾸려면 다시 업로드해야 하며, 무료 체험은 1회만 가능합니다. 로그인하면 여러 번 다시 업로드할 수 있어요.';
                         if (confirm((data.message || '로그인이 필요합니다.') + '\n' + tierChangeNotice + '\n로그인 페이지로 이동할까요?')) {
-                            window.location.href = "{{ url_for('login') }}";
+                            window.location.href = {{ url_for('login') | tojson }};
                         }
                     } else {
                         fileInput.disabled = false;
@@ -687,7 +687,7 @@
             // 설정해둔 "위젯 연동 키"가 있어야 동작해서, 가입 전 공개 테스트 키로는
             // 결제수단 목록 조회가 401로 막힌다. 그래서 결제수단을 직접 지정해서
             // 호출하는 tossPayments.requestPayment(method, options) 방식을 쓴다.
-            const tossClientKey = "{{ toss_client_key }}";
+            const tossClientKey = {{ toss_client_key | tojson }};
             const tossPayments = TossPayments(tossClientKey);
 
             function randomOrderId() {
