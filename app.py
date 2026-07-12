@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import click
 import os
 import json
+import shutil
 import threading
 import time
 import base64
@@ -287,7 +288,7 @@ def load_palette_info(prefix):
         return None
 
 
-def process_pipo_task(file_path, prefix, user_id=None):
+def process_pipo_task(file_path, prefix, user_id=None, skip_watermark=False):
     """실제 segmentation.py의 기능을 수행하는 쓰레드 함수"""
     try:
         # 0. 초기화
@@ -331,12 +332,18 @@ def process_pipo_task(file_path, prefix, user_id=None):
 
         # 화면에 보여줄 미리보기는 위 원본에 옅은 워터마크를 입힌 사본이다.
         # 사용자별 prefix를 파일명 앞에 붙여 서로 덮어쓰지 않게 함.
+        # admin 계정은 결제 여부와 무관하게 워터마크 없는 원본을 그대로 본다.
         overlay_path = f"{RESULT_FOLDER}/{prefix}_overlay.jpg"
         design_path = f"{RESULT_FOLDER}/{prefix}_design.jpg"
         preview_path = f"{RESULT_FOLDER}/{prefix}_preview.jpg"
-        apply_watermark(private_overlay_path, overlay_path)
-        apply_watermark(private_design_path, design_path)
-        apply_watermark(private_preview_path, preview_path)
+        if skip_watermark:
+            shutil.copy2(private_overlay_path, overlay_path)
+            shutil.copy2(private_design_path, design_path)
+            shutil.copy2(private_preview_path, preview_path)
+        else:
+            apply_watermark(private_overlay_path, overlay_path)
+            apply_watermark(private_design_path, design_path)
+            apply_watermark(private_preview_path, preview_path)
 
         # 실제 사용된 팔레트(색상 수/스와치)를 함께 저장해서, 결제 전 무료 체험
         # 결과에서도 "몇 가지 물감이 필요한지"를 바로 보여줄 수 있게 한다.
@@ -358,15 +365,44 @@ def process_pipo_task(file_path, prefix, user_id=None):
 
         # 로그인한 사용자는 업로드/변환 결과를 DB에도 남겨서, IP가 바뀌어도
         # 로그인만 하면 마지막 결과물을 다시 찾을 수 있게 한다.
+        #
+        # 주의: overlay_path/design_path/preview_path/file_path는 모두 get_prefix()
+        # 기반(예: user_5)의 "사용자당 고정 파일명"이라, 같은 사용자가 다시
+        # 업로드하면 다음 번 process_pipo_task가 이 파일들을 그대로 덮어쓴다.
+        # progress_status/is_paid/download_result 등 "현재 진행 중이거나 가장
+        # 최근 1건"만 다루는 로직은 이 고정 경로를 계속 그대로 써야 하므로 위
+        # overlay_path 등 변수는 건드리지 않는다. 대신 이 Design row가 앞으로도
+        # 자신만의 실제 이미지를 계속 가리키도록, Design.id를 파일명에 포함한
+        # 별도 사본을 만들어 그 경로를 DB 컬럼에 저장한다. 이렇게 하면
+        # my_designs()가 여러 row를 보여줄 때 각 row가 실제로 서로 다른(생성
+        # 당시의) 이미지를 가리키게 된다.
         if user_id is not None:
             with app.app_context():
-                db.session.add(Design(
+                design = Design(
                     user_id=user_id,
                     upload_path=file_path,
                     overlay_path=overlay_path,
                     design_path=design_path,
                     preview_path=preview_path,
-                ))
+                )
+                db.session.add(design)
+                # Design.id를 알아야 고유 경로를 만들 수 있으므로 우선 커밋한다.
+                db.session.commit()
+
+                unique_upload_path = f"{UPLOAD_FOLDER}/user_{user_id}_design_{design.id}.jpg"
+                unique_overlay_path = f"{RESULT_FOLDER}/user_{user_id}_design_{design.id}_overlay.jpg"
+                unique_design_path = f"{RESULT_FOLDER}/user_{user_id}_design_{design.id}_design.jpg"
+                unique_preview_path = f"{RESULT_FOLDER}/user_{user_id}_design_{design.id}_preview.jpg"
+
+                shutil.copy2(file_path, unique_upload_path)
+                shutil.copy2(overlay_path, unique_overlay_path)
+                shutil.copy2(design_path, unique_design_path)
+                shutil.copy2(preview_path, unique_preview_path)
+
+                design.upload_path = unique_upload_path
+                design.overlay_path = unique_overlay_path
+                design.design_path = unique_design_path
+                design.preview_path = unique_preview_path
                 db.session.commit()
 
     except Exception as e:
@@ -388,13 +424,25 @@ def index():
         initial_preview = os.path.relpath(design.preview_path, 'static') if has_result else None
         initial_upload = (os.path.relpath(design.upload_path, 'static')
                            if has_result and os.path.exists(design.upload_path) else None)
+        # 각 Design row가 이제 고유 파일 경로를 가지므로 Design.id를 그대로
+        # 캐시 무효화 버전으로 쓸 수 있다(같은 사용자라도 도안이 바뀌면 값이 바뀜).
+        preview_version = design.id if has_result else 0
     else:
         preview_name = f"{prefix}_preview.jpg"
-        has_result = os.path.exists(os.path.join(RESULT_FOLDER, preview_name))
+        preview_full_path = os.path.join(RESULT_FOLDER, preview_name)
+        has_result = os.path.exists(preview_full_path)
         initial_preview = f"results/{preview_name}" if has_result else None
         upload_name = f"{prefix}.jpg"
         initial_upload = (f"uploads/{upload_name}"
                            if has_result and os.path.exists(os.path.join(UPLOAD_FOLDER, upload_name)) else None)
+        # 비로그인 사용자는 prefix 기반 고정 파일명을 그대로 쓰므로(무료 체험
+        # 1회 제한), 파일 자체의 수정 시각을 캐시 무효화 버전으로 사용해서
+        # 브라우저가 예전에 캐시해둔 이미지를 새로고침 후에도 계속 보여주는
+        # 일이 없게 한다.
+        try:
+            preview_version = int(os.path.getmtime(preview_full_path)) if has_result else 0
+        except OSError:
+            preview_version = 0
 
     initial_palette = load_palette_info(prefix) if has_result else None
 
@@ -402,6 +450,7 @@ def index():
         'index.html',
         initial_preview=initial_preview,
         initial_upload=initial_upload,
+        preview_version=preview_version,
         has_result=has_result,
         initial_palette=initial_palette,
         initial_palette_count=len(initial_palette) if initial_palette else 0,
@@ -601,9 +650,12 @@ def upload_file():
         }
 
         user_id = current_user.id if current_user.is_authenticated else None
+        skip_watermark = current_user.is_authenticated and current_user.is_admin
 
         # 백그라운드 쓰레드 시작
-        thread = threading.Thread(target=process_pipo_task, args=(file_path, prefix, user_id))
+        thread = threading.Thread(
+            target=process_pipo_task, args=(file_path, prefix, user_id, skip_watermark)
+        )
         thread.start()
 
     return jsonify({"result": "started"})
