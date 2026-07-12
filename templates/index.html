@@ -143,10 +143,10 @@
                     <div class="result-card" id="result-card">
                         <div class="compare-slider {{ '' if initial_upload else 'is-single' }}" id="compare-slider" {{ '' if has_result else 'hidden' }}>
                             <img id="painting-result-img" class="compare-img compare-img-after"
-                                 src="{{ url_for('static', filename=initial_preview) if has_result else '' }}"
+                                 src="{{ (url_for('static', filename=initial_preview) ~ '?v=' ~ preview_version) if has_result else '' }}"
                                  alt="완성된 도안" draggable="false" />
                             <img id="compare-before-img" class="compare-img compare-img-before"
-                                 src="{{ url_for('static', filename=initial_upload) if initial_upload else '' }}"
+                                 src="{{ (url_for('static', filename=initial_upload) ~ '?v=' ~ preview_version) if initial_upload else '' }}"
                                  alt="업로드한 원본 사진" draggable="false" />
                             <div class="compare-slider-handle" id="compare-slider-handle">
                                 <span class="compare-slider-handle-grip"><i class="fas fa-arrows-alt-h"></i></span>
@@ -156,8 +156,8 @@
                         </div>
                         <div class="result-empty" id="result-empty" {{ 'hidden' if has_result else '' }}>
                             <span class="result-empty-icon"><i class="fas fa-image"></i></span>
-                            <span class="result-empty-title">아직 생성된 도안이 없어요</span>
-                            <span class="result-empty-sub">Pictures에서 사진을 올리면 여기에 결과가 표시돼요</span>
+                            <span class="result-empty-title" id="result-empty-title">아직 생성된 도안이 없어요</span>
+                            <span class="result-empty-sub" id="result-empty-sub">Pictures에서 사진을 올리면 여기에 결과가 표시돼요</span>
                         </div>
                     </div>
                     <p class="compare-hint" id="compare-hint" {{ '' if (has_result and initial_upload) else 'hidden' }}>
@@ -213,6 +213,33 @@
                         <h2>도안 주문하기</h2>
                     </div>
 
+                    <div class="tier-panel" aria-label="등급별 안내 (정보 제공용, 현재 결제 가능한 상품과는 무관합니다)">
+                        <p class="tier-panel-title">
+                            <i class="fas fa-layer-group"></i> 등급 안내
+                            <span class="tier-panel-note">참고용 정보이며 실제 결제 금액에는 영향을 주지 않습니다</span>
+                        </p>
+                        <div class="tier-grid">
+                            <div class="tier-card">
+                                <span class="tier-name">BASIC</span>
+                                <span class="tier-price">20,000원</span>
+                                <span class="tier-colors">16색</span>
+                                <p class="tier-desc">입문자를 위한 기본 색상 구성이에요.</p>
+                            </div>
+                            <div class="tier-card">
+                                <span class="tier-name">STANDARD</span>
+                                <span class="tier-price">40,000원</span>
+                                <span class="tier-colors">24색</span>
+                                <p class="tier-desc">더 풍부한 색감으로 디테일을 살려요.</p>
+                            </div>
+                            <div class="tier-card">
+                                <span class="tier-name">PREMIUM</span>
+                                <span class="tier-price">60,000원</span>
+                                <span class="tier-colors">32색</span>
+                                <p class="tier-desc">가장 정교한 그러데이션을 표현해요.</p>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="modern-form">
                         <div class="order-summary">
                             <span>{{ product_name }}</span>
@@ -264,6 +291,8 @@
             const compareHandle = document.getElementById('compare-slider-handle');
             const compareHint = document.getElementById('compare-hint');
             const resultEmpty = document.getElementById('result-empty');
+            const resultEmptyTitle = document.getElementById('result-empty-title');
+            const resultEmptySub = document.getElementById('result-empty-sub');
             const resultHint = document.getElementById('result-hint');
             const orderBtn = document.getElementById('order-btn');
             const paintingHeading = document.getElementById('painting-heading');
@@ -276,9 +305,51 @@
             // 불안정해서, 서버에서 내려준 값 + 업로드 완료 시점 갱신으로 대체한다.
             let hasResult = {{ 'true' if has_result else 'false' }};
 
+            // 새 사진을 처리하는 동안, 아직 "이번" 결과가 아닌 이전 결과 이미지가
+            // 비교 슬라이더에 그대로 남아있으면 "새로 고른 원본 vs 예전 도안"이
+            // 나란히 보여서 마치 과거 사진과 지금 사진이 섞여 보이는 것처럼
+            // 오해를 산다. 그래서 업로드 시작 시 이전 결과를 잠깐 감춰두고,
+            // 실패하면 감췄던 상태를 그대로 복원한다.
+            function showGeneratingPlaceholder() {
+                compareSlider.hidden = true;
+                compareHint.hidden = true;
+                resultEmpty.hidden = false;
+                resultEmptyTitle.textContent = "도안을 생성하고 있어요...";
+                resultEmptySub.textContent = "완성되면 이 자리에 자동으로 표시돼요";
+                paintingHeading.textContent = "도안을 생성하고 있어요...";
+                // 팔레트(색상 수/스와치)도 이전 도안 것이라 이번 결과가 나오기
+                // 전까지는 같이 감춰둔다.
+                palettePanel.hidden = true;
+            }
+
+            function revertToPreviousResult(hadPreviousResult, previousBeforeSrc, previousAfterSrc, previousPaletteHidden) {
+                if (hadPreviousResult) {
+                    compareBeforeImg.src = previousBeforeSrc;
+                    paintingResultImg.src = previousAfterSrc;
+                    compareSlider.hidden = false;
+                    compareHint.hidden = !previousBeforeSrc;
+                    resultEmpty.hidden = true;
+                    paintingHeading.textContent = "당신만의 특별한 도안이 완성되었습니다!";
+                } else {
+                    compareSlider.hidden = true;
+                    resultEmpty.hidden = false;
+                    resultEmptyTitle.textContent = "아직 생성된 도안이 없어요";
+                    resultEmptySub.textContent = "Pictures에서 사진을 올리면 여기에 결과가 표시돼요";
+                    paintingHeading.textContent = "아직 완성된 도안이 없어요";
+                }
+                palettePanel.hidden = previousPaletteHidden;
+            }
+
             fileInput.addEventListener('change', function(e) {
                 const file = e.target.files[0];
                 if (!file) return;
+
+                // 지금 화면에 보이던 이전 결과를 기억해뒀다가, 이번 업로드가
+                // 실패하면 그대로 복원한다.
+                const hadPreviousResult = hasResult;
+                const previousBeforeSrc = compareBeforeImg.src;
+                const previousAfterSrc = paintingResultImg.src;
+                const previousPaletteHidden = palettePanel.hidden;
 
                 // 1. 프리뷰 이미지 변경
                 const reader = new FileReader();
@@ -289,6 +360,9 @@
                     compareBeforeImg.src = event.target.result;
                     compareSlider.classList.remove('is-single');
                     resetCompareSlider();
+                    // 새 도안이 완성되기 전까지는 이전 결과를 감춰서, 방금 고른
+                    // 새 원본 사진과 예전 도안이 뒤섞여 보이지 않게 한다.
+                    showGeneratingPlaceholder();
                 };
                 reader.readAsDataURL(file);
 
@@ -312,17 +386,20 @@
                     } else if (data.result === 'login_required') {
                         fileInput.disabled = false;
                         fileInput.value = '';
+                        revertToPreviousResult(hadPreviousResult, previousBeforeSrc, previousAfterSrc, previousPaletteHidden);
                         if (confirm((data.message || '로그인이 필요합니다.') + '\n로그인 페이지로 이동할까요?')) {
                             window.location.href = "{{ url_for('login') }}";
                         }
                     } else {
                         fileInput.disabled = false;
+                        revertToPreviousResult(hadPreviousResult, previousBeforeSrc, previousAfterSrc, previousPaletteHidden);
                         alert(data.message || '업로드에 실패했습니다.');
                     }
                 })
                 .catch(error => {
                     console.error('Error:', error);
                     fileInput.disabled = false;
+                    revertToPreviousResult(hadPreviousResult, previousBeforeSrc, previousAfterSrc, previousPaletteHidden);
                     alert('업로드 중 오류가 발생했습니다.');
                 });
             });

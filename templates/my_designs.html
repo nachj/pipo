@@ -40,7 +40,7 @@
                         {% for d in designs %}
                         <div class="step-card">
                             {% if d.preview_rel %}
-                            <img src="{{ url_for('static', filename=d.preview_rel) }}" alt="도안 미리보기 ({{ d.created_at.strftime('%Y-%m-%d %H:%M') if d.created_at else '' }})" />
+                            <img src="{{ url_for('static', filename=d.preview_rel) }}?v={{ d.id }}" alt="도안 미리보기 ({{ d.created_at.strftime('%Y-%m-%d %H:%M') if d.created_at else '' }})" />
                             {% else %}
                             <span class="result-empty-icon"><i class="fas fa-image"></i></span>
                             {% endif %}
