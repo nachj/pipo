@@ -61,9 +61,27 @@ def refine_layout_and_label(final_segments, stylized_img, palette_rgb):
             cv2.drawContours(paper_design, [c], -1, (180, 180, 180), 1)
 
             # 번호 표시 (중심점 계산)
-            M = cv2.moments(c)
-            if M["m00"] > 40:
-                cx, cy = int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"])
+            # 주의: cv2.moments(c)는 컨투어 "다각형"이 구멍 없이 꽉 찬 도형이라고
+            # 가정하고 중심을 계산한다. 오목하거나 도넛형(내부에 다른 색의 구멍이
+            # 있는) 영역에서는 그 결과가 실제 마스크 바깥(=구멍 안쪽)에 찍힐 수
+            # 있어, 번호 누락/다른 영역 번호와의 겹침으로 보인다.
+            # 대신 이 컨투어에 해당하는 실제 이진 마스크 조각(구멍 제외)에
+            # distanceTransform을 적용해 "마스크 내부에서 가장 안쪽인 점"
+            # (pole of inaccessibility)을 구하면, 어떤 형상에서도 결과 좌표가
+            # 항상 그 마스크 내부에 위치함이 보장된다.
+            x, y, w, h = cv2.boundingRect(c)
+            local_mask = np.zeros((h, w), dtype=np.uint8)
+            cv2.drawContours(local_mask, [c], -1, 1, -1, offset=(-x, -y))
+            # 다각형을 꽉 채운 뒤 실제 마스크와 교집합을 취해 구멍(다른 색
+            # 영역)을 다시 파낸다 -> local_mask는 이 조각의 진짜 형상이 된다.
+            local_mask &= mask[y:y + h, x:x + w]
+
+            # M["m00"] <= 40 스킵과 동등하게, 실제 조각 면적(0이 아닌 픽셀 수)
+            # 기준으로 너무 작으면 번호를 생략한다.
+            if cv2.countNonZero(local_mask) > 40:
+                dist = cv2.distanceTransform(local_mask, cv2.DIST_L2, 5)
+                _, _, _, max_loc = cv2.minMaxLoc(dist)
+                cx, cy = max_loc[0] + x, max_loc[1] + y
 
                 cv2.putText(overlay_out, label, (cx - 5, cy + 5),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 0), 1, cv2.LINE_AA)
