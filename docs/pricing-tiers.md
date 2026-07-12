@@ -548,3 +548,89 @@ def mark_paid(prefix, design_id=None):
 - 2026-07-12 (사이클 1, 3차 리뷰 반려 반영): `pipo-reviewer`가 10.5.3 확정안을 다시 검토해 결함 두 가지를 추가로 지적, `app.py`로 재확인 후 10.5.4절을 신설했다. **(A) `index()`(423행) None 크래시**: `os.path.exists(design.preview_path)`가 `preview_path=None`(10.5.3에서 처리 시작 시 먼저 만든 row가 아직 완료 전인 구간)일 때 `TypeError`로 500 에러를 낸다 — `design.preview_path and os.path.exists(...)`로 None 가드 추가 확정, `app.py` 전체에서 `design.preview_path`/`overlay_path`/`design_path`/`upload_path` 참조를 모두 재검색해 이 한 곳만 크래시 지점임을 확인했다(425~426행은 `upload_path`의 DB `nullable=False` 제약으로 현재는 안전, 486/491/492행은 `to_static_rel`이 이미 안전). **(B) `mark_paid()`가 여전히 "가장 최근 Design row"를 대상으로 함(더 심각)**: BASIC 결제 승인 대기 중 같은 계정으로 PREMIUM 재업로드가 시작되면(10.5.3에 따라 미결제 row가 즉시 생김) 뒤늦게 도착한 결제 승인이 "가장 최근 row"인 PREMIUM row를 BASIC 가격에 결제완료 처리해버리는 레이스를 코드로 재확인 — 10.5.3이 레이스 창을 "파이프라인 전체 소요 시간"으로 오히려 넓혔다고 판단했다. **확정 수정**: 10.2절 `tier_info` 사이드카 스키마에 `design_id` 필드를 추가(처리 완료 시점, `palette_info`/`tier_info`를 쓰는 바로 그 지점에 이미 알고 있는 `design.id`를 함께 기록 — 새 타이밍 도입 없음)하고, `mark_paid(prefix, design_id=None)`로 시그니처를 바꿔 `design_id`가 있으면 그 정확한 row에만(및 `user_id` 일치 확인 후) `paid=True`를 쓰도록, `/payment/success`도 금액 검증에 쓴 그 `tier_info`에서 꺼낸 `design_id`를 그대로 `mark_paid`에 전달하도록 재정의했다. 비로그인 사용자는 `Design` row 자체가 없어 `design_id` 필드가 안 붙고 기존 `paid_status[prefix]` 방식 그대로라 이번 변경의 영향이 없음을 확인했다. 12.2절에 백엔드 필수 작업 항목 2건(위 A/B)으로 추가.
 - 2026-07-12 (사이클 1, 2차 리뷰 반려 반영): `pipo-reviewer`가 10.5.2의 `is_paid()` 수정만으로는 부족하다며 재반려했다. 근거: `process_pipo_task`에서 공개 경로 파일 덮어쓰기(329~346행)가 이번 시도의 `Design` row 생성·커밋(379~390행)보다 먼저 끝나서, 그 사이 구간에 `/download/<kind>`가 호출되면 파일은 이미 새(미결제) tier인데 `is_paid()`가 참조하는 "최신 row"는 여전히 이전(결제 완료) row라 True를 반환한다(처리 중 예외 발생 시 이 불일치가 영구화될 위험도 확인). 코드로 재현 가능함을 확인하고 10.5.3절을 신설했다. **확정한 수정: 근본 원인을 "Design row 생성이 파일 쓰기보다 늦다"로 규정하고, `process_pipo_task` 시작 시점(어떤 이미지 처리도 하기 전)에 `Design(user_id=user_id, paid=False, upload_path=file_path, tier=tier)`를 먼저 생성·커밋해두고, 처리가 성공한 뒤에는 새 row를 만들지 않고 이 row의 필드(overlay_path/design_path/preview_path/tier)를 업데이트하는 방식으로 바꾼다.** "파일 쓰기를 커밋 뒤로 미루는" 대안과 비교했을 때, 이 방식은 처리 전체 구간에 걸쳐 최신 row가 즉시 미결제 상태로 전환돼 있어(fail-closed) 파일이 언제 바뀌든 레이스 자체가 성립하지 않고, 예외가 나도 row가 정직하게 `paid=False`로 남아 오히려 더 정확하다. `my_designs()`의 `to_static_rel`이 `None`/미존재 경로를 안전하게 플레이스홀더로 처리함을 확인해 이 방식이 이력 화면과 충돌하지 않음도 검증했다(10.5.3절). 12.2절에 백엔드 필수 작업 항목으로 추가.
 - 2026-07-12 (사이클 1, 세그멘테이션팀 11장 작업 반영): `pipo-segmentation`이 11.2절 지시대로 `static/uploads/`의 실제 업로드 샘플 중 프로필이 서로 다른 6장(인물+텍스트 `user_3.jpg`, 2인 인물 `user_3_design_11.jpg`, 인물+반려동물 `211_36_147_192.jpg`, 반려동물 단독 `122_34_142_96.jpg`, 풍경 `user_5.jpg`, 참고용 초저해상도 `127_0_0_1.jpg`)으로 `qa_baseline.py --check`를 재실행해 4.2절에 결과를 추가했다. 실제 서비스 입력 범위(짧은 변 150px 이상)에 해당하는 5개 프로필 전부 11.1절 기준(단조 증가/배율 상한/완만함/색상 다양성)을 통과했고, `127_0_0_1.jpg`(짧은 변 120px)만 여전히 단조 증가 위반이었으나 이는 4.1절에 이미 기록된 알려진 케이스이며 같은 날 도입된 `MIN_UPLOAD_SHORT_SIDE_PX=150` 업로드 가드로 이미 서비스 입력 단에서 차단되어 새로 발견된 위반이 아니다. **결론: 코드/파라미터 변경 없음**(`n_segments`/`min_area`/`color_merge_threshold` 전부 기존 값 유지).
+- 2026-07-12 (사이클 2, 구현 결과 재검토): `e81a6ac`(사이클 1 구현)와 `088a268`(배포 후 실사용자 리포트로 발견된 인라인 JS 이스케이프 버그 수정)를 8~13장과 대조 재검토. 핵심 결론: 스펙 자체는 정확히 구현됐으나(10.5절의 세 차례 리뷰 반려 반영분 포함, `models.py`/`app.py` 전부 문서와 일치), **"Jinja 변수를 인라인 `<script>` 안에 문자열로 넣을 때 수동으로 따옴표를 붙이면 HTML 자동 이스케이프가 JS 구문 자체를 깨뜨릴 수 있다"는 클래스의 버그가 스펙에 아예 다뤄지지 않았고, 사이클 1 검증에서도 못 잡았다.** 새 14장에 원인 분석과 동일 클래스의 잔존 인스턴스 2건(`templates/index.html` 495행, 690행)을 정리하고, 사이클 2 프론트 작업 지시로 남김(14.3/14.6절). 세그멘테이션 4.2절 재검증은 `git show e81a6ac -- segmentation/`이 빈 diff임을 확인해 여전히 유효하다고 판단(코드 변경 없음, 재실행 불필요).
+
+---
+
+# 사이클 2: 구현 결과 재검토 (2026-07-12)
+
+사이클 1(`e81a6ac`)이 "완료" 선언된 뒤, 실사용자(관리자 계정, 이미 도안이 있는 상태)가 등급 카드를 클릭해도 선택이 바뀌지 않는다고 보고했고, 이는 `088a268`으로 수정됐다. 이 장은 그 사건을 계기로 8~13장 스펙과 실제 구현을 다시 대조하고, 같은 클래스의 문제가 더 있는지, 사이클 1 검증 방법 자체에 구조적 허점이 있었는지를 정리한다.
+
+## 14. 사이클 2 재검토 결과
+
+### 14.1 `088a268` 버그: 스펙 대조 및 근본 원인
+
+8~13장 어디에도 "서버 변수를 인라인 `<script>` 안에 문자열/숫자로 어떻게 안전하게 넣을지"는 명시돼 있지 않았다 — 즉 이 버그는 스펙 위반이 아니라 **스펙이 다루지 않은 구현 디테일에서 난 사고**다. 사이클 1에서 8~13장의 다른 모든 항목(10.1~10.5절의 tier 검증/사이드카/결제 게이팅/레이스 수정)은 `git show e81a6ac`로 확인한 실제 diff와 정확히 일치한다(14.4절 참고).
+
+**근본 원인 (코드로 확인):**
+
+`e81a6ac`가 도입한 코드(`templates/index.html`, 수정 전):
+```javascript
+let currentTierPrice = {{ current_tier_price if current_tier_price is not none else 'null' }};
+let currentTierName = {{ ('"' + current_tier_name + '"') if current_tier_name else 'null' }};
+```
+
+`current_tier_name`은 `app.py::index()`에서 `current_tier.upper()`(예: `"STANDARD"`)로 만들어진 순수 파이썬 문자열이고, Jinja 표현식 `'"' + current_tier_name + '"'`은 그 문자열 앞뒤로 큰따옴표를 붙인 `"STANDARD"`라는 **새로운 문자열**을 만든다. 문제는 Jinja가 `{{ ... }}` 출력을 HTML 컨텍스트 기준으로 자동 이스케이프한다는 점이다 — 이 표현식이 만든 `"` 문자 두 개가 이스케이프 대상이 되어 `&#34;`로 바뀌고, 최종 렌더링 결과는:
+```javascript
+let currentTierName = &#34;STANDARD&#34;;
+```
+이 되어 `<script>` 안에서 `SyntaxError: Unexpected token '&'`가 난다. 이 오류가 나면 그 시점 이후의 모든 인라인 JS(등급 선택 클릭 핸들러 `updateTierSelectionUI` 등록, 결제 버튼 핸들러 등록 전부 포함)가 실행되지 않는다. `has_result=False`(도안이 없는 상태)에서는 `current_tier_name`이 `None`이라 이 줄이 `let currentTierName = null;`로 안전하게 렌더링되므로 증상이 나타나지 않고, `has_result=True`(이미 도안이 있는 계정)일 때만 재현된다.
+
+### 14.2 사이클 1 검증 방법의 허점 — 왜 못 잡았는가
+
+프론트 에이전트는 "`jinja2.Environment`로 `has_result=False`/`True` 두 컨텍스트로 실제 렌더링해 문법 오류 없음을 확인했다"고 보고했고, 실제로 `has_result=True` 케이스도 렌더링을 시도했다고 주장했다. 그런데도 이 버그는 정확히 그 케이스에서만 재현된다. 이 모순은 검증 방법 자체의 다음 허점으로 설명된다:
+
+- **"Jinja 렌더링이 예외 없이 끝난다"는 것과 "그 결과물이 유효한 HTML/JS다"는 것은 다른 명제다.** Jinja는 템플릿 문법(태그 짝, 표현식 문법 등)만 검사하고 렌더링한다 — 렌더링 결과 문자열이 그 안에 내장된 다른 언어(여기서는 `<script>` 태그 안의 JavaScript)의 문법으로도 유효한지는 전혀 검사하지 않는다. `jinja2.Environment().get_template(...).render(has_result=True, ...)`를 호출해 예외 없이 문자열이 반환되면 "렌더링 성공"이지만, 그 문자열 안에 `&#34;STANDARD&#34;;`처럼 깨진 JS가 들어있어도 Jinja 입장에서는 정상 동작이다.
+- **HTML 자동 이스케이프가 "다른 컨텍스트(JS 문자열 리터럴)를 깨뜨릴 수 있다"는 것 자체가 간과됐다.** Jinja의 기본 autoescape는 HTML 마크업 컨텍스트를 기준으로 `<`, `>`, `&`, `"`, `'`를 이스케이프한다. `<script>` 태그 안은 HTML 파서 기준으로는 여전히 "HTML 문서의 일부"이지만, 그 안의 내용은 JS 파서가 다시 해석한다 — 즉 이스케이프는 "HTML을 깨지 않게" 하려는 것인데, 그 부작용으로 "JS를 깨뜨릴" 수 있다는 게 이번 버그의 본질이다. 검증 보고서는 "Jinja 문법 오류 없음"만 확인했다고 명시했지, "이스케이프가 인라인 JS 컨텍스트에 미치는 영향"은 아예 검사 항목에 없었다.
+- **실제로 검증했다고 주장한 `has_result=True` 케이스에서, 렌더링된 *텍스트*가 아니라 렌더링이 *예외를 던지는지*만 확인했을 가능성이 높다.** `render()` 호출은 이스케이프된 `&#34;`가 포함된 문자열을 정상적으로(예외 없이) 반환하므로, "렌더링이 실행됐다"만 확인하는 방식으로는 이 버그를 볼 수 없다 — 렌더링된 `<script>` 블록 내용을 실제 JS 파서(예: Node.js `vm`/`new Function`, 또는 최소한 브라우저)에 통과시켜 "문법적으로 유효한 JS인가"까지 확인했어야 이 버그가 나왔을 것이다.
+- **결론: "템플릿이 렌더링되는가"와 "렌더링된 결과에 내장된 하위 언어(JS/CSS/URL 등)가 유효한가"는 서로 다른 검증이며, 사이클 1은 전자만 하고 후자를 하지 않았다.** 이는 이 프로젝트의 일반적인 검증 관행에 대한 시사점이기도 하다 — 앞으로 인라인 `<script>`/`<style>` 안에 서버 변수를 넣는 변경이 있으면, Jinja 렌더링 성공 여부와 별개로 **렌더링된 스크립트 내용 자체를 JS 파서로 파싱해보는 점검**(또는 최소한 실제 브라우저/헤드리스 브라우저로 `has_result=True`/`False` 두 상태를 다 띄워서 콘솔 에러가 없는지 확인)을 검증 절차에 추가해야 한다.
+
+### 14.3 동일 클래스의 잔존 인스턴스 재검토
+
+`templates/index.html`의 `<script>` 블록 전체(`awk '/<script/{s=1} /<\/script>/{s=0} s' templates/index.html | grep '{{'`)를 재검토한 결과, `{{ ... }}`로 값을 인라인 JS에 박아 넣는 곳은 아래 5곳이다.
+
+| 줄 | 코드 | tojson 사용 여부 | 평가 |
+|---|---|---|---|
+| 346 | `let currentTierPrice = {{ current_tier_price \| tojson }};` | 예 | `088a268`에서 수정됨. 안전 |
+| 347 | `let currentTierName = {{ current_tier_name \| tojson }};` | 예 | `088a268`에서 수정됨. 안전 |
+| 36 | `let hasResult = {{ 'true' if has_result else 'false' }};` | 아니오(수동 리터럴) | **안전.** Jinja 표현식이 파이썬 `bool`을 그대로 JS로 변환하는 게 아니라, `'true'`/`'false'`라는 **고정 리터럴 문자열 둘 중 하나**만 골라 출력한다. 사용자/서버 데이터가 그대로 흘러들어오는 통로가 아니므로 088a268과 같은 이스케이프 위험이 없다. |
+| **495** | `window.location.href = "{{ url_for('login') }}";` | **아니오(수동 따옴표)** | **088a268과 동일한 패턴.** `url_for()`가 반환하는 경로 문자열을 수동으로 큰따옴표로 감싸 JS 문자열 리터럴을 만든다. 현재는 `url_for('login')`이 인자 없는 고정 라우트라 결과가 항상 `/login`(따옴표·`&`·`<` 등 이스케이프 대상 문자가 없는 값)이라 실제로 깨지지 않지만, **이스케이프 위험 자체가 없는 것이 아니라 "지금 이 값이 우연히 안전한 문자만 포함할 뿐"이다.** 향후 `url_for`에 쿼리 파라미터(`next=` 등)가 추가되거나 로그인 경로 자체가 바뀌면 같은 클래스의 버그가 재현될 수 있는 잠재 위험. |
+| **690** | `const tossClientKey = "{{ toss_client_key }}";` | **아니오(수동 따옴표)** | **088a268과 동일한 패턴.** `toss_client_key`는 `app.py`의 `TOSS_CLIENT_KEY = os.environ.get('TOSS_CLIENT_KEY', 'test_ck_...')` — 즉 **환경 변수로 배포 시점에 값이 바뀔 수 있는 입력**이다. 현재 기본값(`test_ck_D5GePWvyJnrK0W0k6q8gLzN97Eoq`)은 안전한 문자만 포함하지만, 운영 배포 환경에서 이 환경 변수에 다른 값이 설정될 경우 그 값의 문자 구성을 코드가 전혀 통제하지 못한다. 사용자 입력이 아니라 배포 설정값이라 공격 표면은 아니지만, **495행보다 한 단계 더 위험하다** — 496행과 달리 이 값은 코드베이스 밖(환경 변수)에서 결정되므로, "지금 안전해 보인다"는 보장이 코드 리뷰만으로는 지속되지 않는다. |
+
+**결론: `088a268`이 고친 2건 외에, 정확히 같은 안티패턴(수동 따옴표로 Jinja 값을 JS 문자열 리터럴로 감싸기)이 495행과 690행에 남아있다.** 둘 다 "지금 당장 재현되는 버그"는 아니지만(현재 값들이 우연히 이스케이프 위험 문자를 포함하지 않음), `088a268`이 고친 버그와 구조적으로 동일한 잠재 결함이며, 언제든 값의 내용이 바뀌면(환경 변수 변경, 라우트에 쿼리 파라미터 추가 등) 재현 가능하다.
+
+#### 사이클 2 프론트 작업 지시 (수정 지시만, 실제 코드 수정은 사이클 2 구현 단계에서)
+
+- `templates/index.html` 495행: `window.location.href = "{{ url_for('login') }}";` → `window.location.href = {{ url_for('login') | tojson }};`로 교체.
+- `templates/index.html` 690행: `const tossClientKey = "{{ toss_client_key }}";` → `const tossClientKey = {{ toss_client_key | tojson }};`로 교체.
+- 위 2건 외에 36행(`hasResult`)은 안전하므로 수정 대상 아님(14.3절 표 참고, 고정 리터럴만 출력하는 패턴이라 088a268과 다른 케이스).
+- **일반 규칙으로 남김:** 앞으로 `templates/index.html`(또는 다른 템플릿)의 인라인 `<script>` 안에 Jinja 변수를 문자열/숫자/불리언으로 넣을 때는, 그 값이 파이썬에서 정한 고정 리터럴(`'true'`/`'false'`처럼 개발자가 코드에 직접 적은 유한한 선택지)이 아닌 이상 **항상 `| tojson` 필터를 쓴다.** 수동으로 따옴표를 붙이거나 문자열 결합으로 JS 리터럴을 만드는 방식은 금지한다 — 값의 내용이 통제 밖에서 바뀔 수 있는 한(환경 변수, DB 조회 결과, 사용자 입력 유래 값 등) 이스케이프가 JS 구문을 깨뜨릴 잠재 위험이 항상 있다.
+
+### 14.4 8~13장 스펙 vs 실제 구현 재대조
+
+`git show e81a6ac -- app.py models.py`의 diff를 10.1~10.5.4절과 한 줄씩 대조한 결과, **불일치는 발견되지 않았다.**
+
+- `models.py::Design.tier`: `db.Column(db.String(20), nullable=True)` — 10.4절과 정확히 일치(주석에 수동 마이그레이션 필요성까지 그대로 반영).
+- `TIER_PRICES = {"basic": 20000, "standard": 40000, "premium": 60000}`, `PRODUCT_PRICE` 제거 — 9장/10.3절과 일치.
+- `is_paid()`: 로그인 분기가 dict 폴백 없이 `return bool(design is not None and design.paid)`로 즉시 반환 — 10.5.2절 확정 코드와 정확히 일치.
+- `mark_paid(prefix, design_id=None)`: `design_id`가 있으면 `db.session.get(Design, design_id)` 조회 후 `user_id` 일치 확인 → `paid=True` — 10.5.4(B) 확정 코드와 일치.
+- `process_pipo_task`: 처리 시작 시점에 `Design(user_id=user_id, paid=False, upload_path=file_path, tier=tier)` 선(先)생성·커밋, 이후 `design_id`로 재조회해 필드 업데이트 — 10.5.3절과 일치. 세션 detach 이슈까지 코드 주석으로 명시(스펙에 없던 구현 디테일이지만 스펙 의도와 상충하지 않음).
+- `index()`: `has_result = design is not None and design.preview_path and os.path.exists(design.preview_path)` — 10.5.4(A) 확정 코드와 일치. `upload_path` 방어 가드(425~426행 상당)도 스펙에서 "선택 사항"으로 남긴 것을 실제로 추가함(과잉이 아니라 스펙이 허용한 선택지 채택).
+- `tier_info_path`/`load_tier_info`: 10.2절 스키마(`tier`/`price_krw`/`k_colors`/`design_id`)와 필드 구성이 정확히 일치. 쓰는 시점도 "`palette_info`와 같은 지점"으로 스펙대로 구현됨.
+- `payment_success`: `tier_info` 조회 → `TIER_PRICES[tier_info["tier"]]`와 `amount_int` 비교 → `mark_paid(prefix, design_id=tier_info.get("design_id"))` — 10.3절/10.5.4(B)와 일치.
+- `/upload`: `request.form.get('tier')`가 `TIER_PRICES`에 없으면 400 — 10.1절과 일치(기본값으로 조용히 STANDARD를 넣지 않는다는 요구사항도 그대로 반영).
+- `/progress` 응답·완료 페이로드에 `tier`/`price_krw`/`k_colors` 포함 — 12.1절이 요구한 프론트-백엔드 필드명(`tier`, `price_krw`, `k_colors`)과 정확히 일치.
+- 12.2절의 "선택 사항"(`mark_paid`에서 로그인 사용자는 dict에 안 쓰기, `upload_path` 방어 가드)은 채택하지 않거나 일부만 채택했으나, 스펙이 이미 "필수 아님"으로 명시한 항목이라 결함이 아니다.
+
+프론트 쪽(12.1절)도 8.3/9장 지시와 대조해 전부 반영됨을 확인했다(등급 카드를 업로드 전 단계로 이동, 기본값 STANDARD, "참고용" 문구 삭제, `formData.append('tier', ...)`, 결과 없을 때 결제 버튼 비활성화, 재업로드 안내 문구). 088a268로 고친 이스케이프 버그를 제외하면 **8~13장 스펙과 실제 구현 사이에 추가로 발견된 불일치는 없다.**
+
+### 14.5 세그멘테이션 4.2절 재검증 유효성 확인
+
+`git show e81a6ac -- segmentation/`은 빈 diff다(파일 변경 없음) — 즉 이번 사이클의 프론트/백엔드 구현이 세그멘테이션 코드 자체를 전혀 건드리지 않았다. 4.2절의 6개 샘플 재검증 결과(5개 PASS, 초저해상도 참고용 1개는 알려진 케이스이며 업로드 가드로 이미 차단)는 **여전히 유효하다.** 재실행은 불필요하다.
+
+### 14.6 사이클 2 종합 지시 요약
+
+- **프론트(필수):** `templates/index.html` 495행, 690행을 14.3절의 수정 지시대로 `| tojson` 필터로 교체한다. (`088a268`이 고친 346~347행은 이미 완료, 재작업 불필요.)
+- **백엔드:** 추가 작업 지시 없음(14.4절, 스펙과 구현이 완전히 일치).
+- **세그멘테이션:** 추가 작업 지시 없음(14.5절, 코드 변경 없어 4.2절 재검증 그대로 유효).
+- **QA/검증 절차 전반에 대한 제언(강제 지시는 아니지만 12장에 준하는 권고):** 앞으로 인라인 `<script>`/`<style>`에 서버 변수를 넣는 변경을 검증할 때는, "Jinja 렌더링이 예외 없이 끝나는가"뿐 아니라 **"렌더링된 결과에 내장된 하위 언어(JS 등)가 실제로 유효한 문법인가"까지 확인**한다(14.2절 근본 원인 분석 참고). 최소 기준으로 `has_result=True`/`False` 두 상태를 실제 브라우저(또는 헤드리스 브라우저)로 띄워 콘솔에 JS 에러가 없는지 확인하거나, 렌더링된 `<script>` 내용만 추출해 JS 파서로 파싱 검사를 추가하는 것을 권장한다.
