@@ -107,9 +107,11 @@ TOSS_SECRET_KEY = os.environ.get('TOSS_SECRET_KEY', 'test_sk_zXLkKEypNArWmo50nX3
 TOSS_CONFIRM_URL = 'https://api.tosspayments.com/v1/payments/confirm'
 
 PRODUCT_NAME = '피포페인팅 나만의 도안 제작'
-# 결제 금액은 클라이언트가 보낸 값을 그대로 믿지 않고 서버가 알고 있는 이 값과
-# 대조해서 검증한다 (금액 조작 방지 — 토스페이먼츠 공식 가이드 권고 사항).
-PRODUCT_PRICE = 15000
+# 등급별 실제 결제 금액 (docs/pricing-tiers.md 9장, 3단계 표 확정).
+# 결제 금액은 클라이언트가 보낸 값이나 이 요청에 실린 tier를 그대로 믿지 않고,
+# "이미 생성된 도안이 실제로 어떤 tier로 만들어졌는가"(tier_info 사이드카)로부터
+# 유도한 이 표의 값과 대조해서 검증한다(10.3절, 금액 조작 방지).
+TIER_PRICES = {"basic": 20000, "standard": 40000, "premium": 60000}
 
 # 사용자(IP)별 진행 상태를 따로 관리 -> {prefix: {"percent": ..., "message": ..., "status": ...}}
 progress_status = {}
@@ -188,34 +190,42 @@ def get_prefix():
 def is_paid(prefix):
     """이 prefix(로그인 사용자는 user_id, 비로그인은 IP)가 결제를 완료했는지 확인한다.
 
-    로그인 사용자는 DB(Design.paid, 영속적)를 우선 확인하고, 비로그인 사용자는
-    인메모리 paid_status dict(서버 재시작 시 초기화, IP 공유/변경 시 부정확할
-    수 있음)를 확인한다."""
+    로그인 사용자는 반드시 DB(Design.paid, 가장 최근 Design row)만을 신뢰의
+    원천으로 삼는다 — paid_status dict로 폴백하지 않는다. 재업로드할 때마다
+    새 Design row(기본 paid=False)가 생기므로, 이전에 다른 tier로 결제했던
+    이력이 최신 도안의 결제 여부에 영향을 주지 않는다(docs/pricing-tiers.md
+    10.5절). 비로그인 사용자만 인메모리 paid_status dict를 신뢰의 원천으로 쓴다."""
     if current_user.is_authenticated:
         design = (Design.query
                   .filter_by(user_id=current_user.id)
                   .order_by(Design.created_at.desc())
                   .first())
-        if design is not None and design.paid:
-            return True
+        return bool(design is not None and design.paid)
 
     with paid_lock:
         return bool(paid_status.get(prefix))
 
 
-def mark_paid(prefix):
+def mark_paid(prefix, design_id=None):
     """결제 승인이 끝난 직후 호출한다. 같은 세션/IP의 get_prefix() 값을 그대로
-    받아서 그 prefix를 결제 완료로 표시하고, 로그인 사용자라면 DB의 가장 최근
-    Design 레코드에도 paid=True를 영속화한다."""
+    받아서 그 prefix를 결제 완료로 표시한다.
+
+    design_id가 주어지면(로그인 사용자, tier_info에 기록된 그 결제 시점의
+    정확한 Design row) "가장 최근 row"가 아니라 반드시 그 design_id의 row에만
+    paid=True를 영속화한다 — 결제 승인이 지연되는 동안 같은 계정으로 재업로드가
+    시작되어 더 최근의(아직 결제 안 된) row가 생겨도 잘못된 row가 결제완료로
+    표시되지 않는다(docs/pricing-tiers.md 10.5.4절). design_id가 없으면(비로그인
+    사용자, Design row 자체가 없음) 기존과 동일하게 paid_status dict만 갱신한다."""
     with paid_lock:
         paid_status[prefix] = True
 
-    if current_user.is_authenticated:
-        design = (Design.query
-                  .filter_by(user_id=current_user.id)
-                  .order_by(Design.created_at.desc())
-                  .first())
-        if design is not None:
+    if design_id is not None:
+        design = db.session.get(Design, design_id)
+        # user_id까지 함께 확인하는 것은 이론상 불필요한 이중 방어다 — design_id는
+        # 서버가 그 사용자 자신의 tier_info 파일에 직접 써넣은 값이라 클라이언트가
+        # 조작할 지렛대가 없다. 그래도 파일 손상 등 예상 밖의 경로로 다른
+        # 사용자의 design_id가 들어오는 사고를 조기에 걸러내기 위한 방어적 확인.
+        if design is not None and design.user_id == current_user.id:
             design.paid = True
             db.session.commit()
 
@@ -288,14 +298,56 @@ def load_palette_info(prefix):
         return None
 
 
-def process_pipo_task(file_path, prefix, user_id=None, skip_watermark=False):
-    """실제 segmentation.py의 기능을 수행하는 쓰레드 함수"""
+def tier_info_path(prefix):
+    return f"{RESULT_FOLDER}/{prefix}_tier.json"
+
+
+def load_tier_info(prefix):
+    """저장된 tier 정보 JSON({"tier", "price_krw", "k_colors", "design_id"?})을
+    읽어온다. 없거나 손상된 경우 None을 반환한다.
+
+    이 값이 곧 결제 금액 검증(payment_success)의 유일한 근거다 — 클라이언트가
+    보낸 tier/amount가 아니라, 서버가 파이프라인 성공 직후 여기에 기록해 둔
+    tier로부터 가격을 유도한다(docs/pricing-tiers.md 10.2~10.3절)."""
+    path = tier_info_path(prefix)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return None
+
+
+def process_pipo_task(file_path, prefix, user_id=None, skip_watermark=False, tier="standard"):
+    """실제 segmentation.py의 기능을 수행하는 쓰레드 함수.
+
+    docs/pricing-tiers.md 10.5.3절: Design row는 이미지 처리를 시작하기 전에
+    (user_id가 있는 경우) 먼저 paid=False로 생성·커밋해둔다. 이렇게 하면
+    "최신 Design row"가 처리 시작 시점부터 즉시 이번(미결제) 시도로 전환되어,
+    처리 도중 파일이 이미 새 tier로 덮어써졌지만 DB는 아직 이전(결제 완료)
+    row를 가리키는 레이스 창이 생기지 않는다(fail-closed). 처리가 성공하면
+    새 row를 또 만들지 않고 이 row의 필드를 업데이트한다.
+    """
+    design = None
+    design_id = None
+    if user_id is not None:
+        with app.app_context():
+            design = Design(user_id=user_id, paid=False, upload_path=file_path, tier=tier)
+            db.session.add(design)
+            # 어떤 이미지 처리도 하기 전에 먼저 커밋 — 이 시점부터 "최신 Design
+            # row"가 즉시 이번(미결제) 시도로 전환된다.
+            db.session.commit()
+            # 이후(파이프라인 성공 시점)에 tier_info에 기록할 값을 지금 즉시
+            # 일반 변수로 캡처해둔다. process_pipo_task 본문 대부분은 app_context
+            # 밖에서 실행되므로, design.id를 나중에(이 블록 밖에서) 다시 읽으면
+            # 만료된 ORM 속성을 새로고침하려다 app context 오류가 날 수 있다.
+            design_id = design.id
+
     try:
         # 0. 초기화
         _update_progress(prefix, {"percent": 5, "message": "AI 모델 초기화 중...", "status": "processing"})
-        # 현재는 단일 상품(가격대)만 판매 중이라 "standard" 등급으로 고정한다.
-        # 가격대별 상품이 추가되면 여기서 request에서 받은 등급 값을 tier로 넘기면 된다.
-        painter = PipoPainter(tier="standard")
+        painter = PipoPainter(tier=tier)
 
         # 1. 사진 로드 및 업사이징 (10%)
         _update_progress(prefix, {"percent": 10, "message": "[1/5] 사진 로드 및 고해상도 변환 중..."})
@@ -353,6 +405,21 @@ def process_pipo_task(file_path, prefix, user_id=None, skip_watermark=False):
         with open(palette_json_path(prefix), 'w', encoding='utf-8') as f:
             json.dump(palette_info, f, ensure_ascii=False)
 
+        # tier 정보(등급/가격/색상수)는 palette_info와 정확히 같은 지점(파이프라인이
+        # 끝까지 성공한 직후)에 함께 저장한다. 업로드 직후에 미리 써버리면, 이번
+        # 처리가 실패했을 때 디스크에 남은 이전 성공작의 결과물과 tier_info가
+        # 서로 다른 시도를 가리키는 경합이 생긴다(docs/pricing-tiers.md 10.2절).
+        # 이 파일이 결제 금액 검증(payment_success)의 유일한 근거다.
+        tier_info = {
+            "tier": tier,
+            "price_krw": TIER_PRICES[tier],
+            "k_colors": painter.k_colors,
+        }
+        if design_id is not None:
+            tier_info["design_id"] = design_id
+        with open(tier_info_path(prefix), 'w', encoding='utf-8') as f:
+            json.dump(tier_info, f, ensure_ascii=False)
+
         # 완료 (100%)
         _update_progress(prefix, {
             "percent": 100,
@@ -361,6 +428,9 @@ def process_pipo_task(file_path, prefix, user_id=None, skip_watermark=False):
             "result_file": f"{prefix}_preview.jpg", # 결과 파일명 전달
             "palette": palette_info,
             "palette_count": len(palette_info),
+            "tier": tier_info["tier"],
+            "price_krw": tier_info["price_krw"],
+            "k_colors": tier_info["k_colors"],
         })
 
         # 로그인한 사용자는 업로드/변환 결과를 DB에도 남겨서, IP가 바뀌어도
@@ -376,17 +446,23 @@ def process_pipo_task(file_path, prefix, user_id=None, skip_watermark=False):
         # 별도 사본을 만들어 그 경로를 DB 컬럼에 저장한다. 이렇게 하면
         # my_designs()가 여러 row를 보여줄 때 각 row가 실제로 서로 다른(생성
         # 당시의) 이미지를 가리키게 된다.
-        if user_id is not None:
+        #
+        # 이 row는 처리 시작 시점(위 design_id 캡처 지점)에 이미 생성·커밋되어
+        # 있으므로, 여기서는 새 row를 만들지 않고 이 row의 필드만 업데이트한다
+        # (docs/pricing-tiers.md 10.5.3절 — Design row 선(先)생성으로 재업로드
+        # 처리 중 결제 게이팅 레이스를 없앤다).
+        if design_id is not None:
             with app.app_context():
-                design = Design(
-                    user_id=user_id,
-                    upload_path=file_path,
-                    overlay_path=overlay_path,
-                    design_path=design_path,
-                    preview_path=preview_path,
-                )
-                db.session.add(design)
-                # Design.id를 알아야 고유 경로를 만들 수 있으므로 우선 커밋한다.
+                # design은 처리 시작 시점의 app_context 블록이 끝나면서 그
+                # 세션에서 분리(detach)된다(Flask-SQLAlchemy는 app_context가
+                # 끝날 때 db.session.remove()를 호출한다). 그 detached 인스턴스에
+                # 그대로 속성을 대입하고 commit해봐야 새 세션은 이 객체를 전혀
+                # 모르므로 아무 것도 저장되지 않는다 — 반드시 design_id로 이
+                # 세션에 다시 로드해서 갱신해야 한다.
+                design = db.session.get(Design, design_id)
+                design.overlay_path = overlay_path
+                design.design_path = design_path
+                design.preview_path = preview_path
                 db.session.commit()
 
                 unique_upload_path = f"{UPLOAD_FOLDER}/user_{user_id}_design_{design.id}.jpg"
@@ -420,10 +496,14 @@ def index():
                   .filter_by(user_id=current_user.id)
                   .order_by(Design.created_at.desc())
                   .first())
-        has_result = design is not None and os.path.exists(design.preview_path)
+        # design.preview_path는 10.5.3절의 "처리 시작 시 Design row 선(先)생성"
+        # 방식에서는 처리 완료 전까지 None일 수 있다(nullable). os.path.exists(None)은
+        # TypeError를 내므로 반드시 None 가드를 먼저 거친다(docs/pricing-tiers.md
+        # 10.5.4절 (A), 3차 리뷰 반려 반영 필수 항목).
+        has_result = design is not None and design.preview_path and os.path.exists(design.preview_path)
         initial_preview = os.path.relpath(design.preview_path, 'static') if has_result else None
         initial_upload = (os.path.relpath(design.upload_path, 'static')
-                           if has_result and os.path.exists(design.upload_path) else None)
+                           if has_result and design.upload_path and os.path.exists(design.upload_path) else None)
         # 각 Design row가 이제 고유 파일 경로를 가지므로 Design.id를 그대로
         # 캐시 무효화 버전으로 쓸 수 있다(같은 사용자라도 도안이 바뀌면 값이 바뀜).
         preview_version = design.id if has_result else 0
@@ -446,6 +526,17 @@ def index():
 
     initial_palette = load_palette_info(prefix) if has_result else None
 
+    # 현재 prefix의 tier_info(있으면)를 읽어 "현재 도안의 등급/가격/색상수"를
+    # 템플릿에 넘긴다. 결과가 없으면(또는 tier_info가 아직 없으면) 전부 None으로
+    # 넘겨서 프론트가 "사진을 업로드하면 등급에 맞는 금액이 표시됩니다" 같은
+    # 중립 상태를 명확히 구분해서 보여줄 수 있게 한다.
+    tier_info = load_tier_info(prefix) if has_result else None
+    current_tier = tier_info.get("tier") if tier_info else None
+    current_tier_name = current_tier.upper() if current_tier else None
+    current_tier_price = tier_info.get("price_krw") if tier_info else None
+    current_tier_k_colors = tier_info.get("k_colors") if tier_info else None
+    order_name = f"{PRODUCT_NAME} ({current_tier_name})" if current_tier_name else None
+
     return render_template(
         'index.html',
         initial_preview=initial_preview,
@@ -455,8 +546,11 @@ def index():
         initial_palette=initial_palette,
         initial_palette_count=len(initial_palette) if initial_palette else 0,
         toss_client_key=TOSS_CLIENT_KEY,
-        product_name=PRODUCT_NAME,
-        product_price=PRODUCT_PRICE,
+        current_tier=current_tier,
+        current_tier_name=current_tier_name,
+        current_tier_price=current_tier_price,
+        current_tier_k_colors=current_tier_k_colors,
+        order_name=order_name,
         # 결제가 확인된 사용자에게만 워터마크 없는 원본 다운로드 버튼을 보여준다.
         is_paid=has_result and is_paid(prefix),
     )
@@ -567,6 +661,15 @@ def upload_file():
     if 'photo' not in request.files or not request.files['photo'].filename:
         return jsonify({"result": "fail", "message": "파일이 선택되지 않았습니다."}), 400
 
+    # 등급(tier) 검증: 클라이언트가 basic/standard/premium 중 하나를 명시적으로
+    # 보내야 한다. 기본값으로 조용히 STANDARD를 대입하지 않는다 — 그러면 프론트
+    # 버그로 tier 필드가 누락됐을 때 사용자가 의도한 것과 다른(그리고 나중에
+    # 금액도 안 맞는) 도안이 만들어지는 사고를 조기에 못 잡는다
+    # (docs/pricing-tiers.md 10.1절).
+    tier = request.form.get('tier')
+    if tier not in TIER_PRICES:
+        return jsonify({"result": "fail", "message": "등급을 선택해주세요."}), 400
+
     file = request.files['photo']
 
     # 확장자 검사 (대소문자 무관).
@@ -647,6 +750,13 @@ def upload_file():
             "message": "업로드 완료, 처리 대기 중...",
             "status": "processing",
             "updated_at": time.time(),
+            # /progress 응답이 처음부터 tier/price_krw/k_colors를 포함하도록
+            # 업로드 시점에 이미 검증된 값을 넣어둔다(진행 메시지 표시용 부가
+            # 정보일 뿐, 금액 검증의 근거는 여전히 tier_info_path 사이드카
+            # 파일 하나뿐이다 — docs/pricing-tiers.md 10.2절).
+            "tier": tier,
+            "price_krw": TIER_PRICES[tier],
+            "k_colors": PipoPainter.TIER_PRESETS[tier]["k_colors"],
         }
 
         user_id = current_user.id if current_user.is_authenticated else None
@@ -654,7 +764,7 @@ def upload_file():
 
         # 백그라운드 쓰레드 시작
         thread = threading.Thread(
-            target=process_pipo_task, args=(file_path, prefix, user_id, skip_watermark)
+            target=process_pipo_task, args=(file_path, prefix, user_id, skip_watermark, tier)
         )
         thread.start()
 
@@ -677,14 +787,24 @@ def payment_success():
         return render_template('payment_result.html', success=False,
                                 error_message='잘못된 결제 응답입니다.')
 
-    # 클라이언트가 위젯에 넘긴 금액을 그대로 신뢰하지 않고, 서버가 알고 있는
-    # 실제 상품 가격과 대조해서 금액이 조작되지 않았는지 확인한다.
+    # 클라이언트가 위젯에 넘긴 금액을 그대로 신뢰하지 않는다. 이 요청이 어떤
+    # tier에 대한 것인지도 클라이언트에게서 받지 않는다 — 오직 서버가 이
+    # prefix에 대해 이미 기록해 둔 tier_info(파이프라인 성공 시점에 저장된
+    # 사이드카 파일)에서 유도한 가격과만 비교한다(docs/pricing-tiers.md 10.3절).
     try:
         amount_int = int(amount)
     except ValueError:
         amount_int = None
 
-    if amount_int != PRODUCT_PRICE:
+    prefix = get_prefix()
+    tier_info = load_tier_info(prefix)
+
+    if tier_info is None or tier_info.get("tier") not in TIER_PRICES:
+        return render_template('payment_result.html', success=False,
+                                error_message='결제할 도안 정보를 찾을 수 없습니다. 먼저 사진을 업로드해 도안을 생성해주세요.')
+
+    expected_price = TIER_PRICES[tier_info["tier"]]
+    if amount_int != expected_price:
         return render_template('payment_result.html', success=False,
                                 error_message='결제 금액이 올바르지 않습니다.')
 
@@ -702,12 +822,13 @@ def payment_success():
                                 error_message='결제 승인 서버에 연결할 수 없습니다.')
 
     if res.status_code == 200:
-        # 결제 승인이 확정된 시점에, 지금 요청을 보낸 것과 같은 세션/IP의
-        # get_prefix() 값을 그대로 사용해서 그 prefix(비로그인=IP,
-        # 로그인=user_id)를 결제 완료로 표시한다. 이렇게 하면 /download/<kind>가
-        # 이 prefix로 만들어진 결과물을 원본 화질로 내려줄 수 있다.
-        prefix = get_prefix()
-        mark_paid(prefix)
+        # 결제 승인이 확정된 시점에, 금액 검증에 이미 쓴 그 tier_info에서 꺼낸
+        # design_id를 그대로 mark_paid에 전달한다. "가장 최근 row"가 아니라
+        # 정확히 이 결제 대상 row에만 paid=True를 쓰기 위함이다 — 결제 승인이
+        # 지연되는 동안 같은 계정으로 상위 tier 재업로드가 시작돼도 그 진행
+        # 중인(미결제) row가 이번 결제 몫으로 잘못 표시되지 않는다
+        # (docs/pricing-tiers.md 10.5.4절).
+        mark_paid(prefix, design_id=tier_info.get("design_id"))
         return render_template('payment_result.html', success=True, payment=res.json())
 
     error_body = res.json() if res.content else {}

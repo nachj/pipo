@@ -37,6 +37,13 @@ class Design(db.Model):
     # 기존 DB에 이 컬럼을 반영하려면 수동 마이그레이션(ALTER TABLE)이나
     # Flask-Migrate 도입이 필요하다. 다음 사이클 개선 과제로 남겨둔다.
     paid = db.Column(db.Boolean, default=False, nullable=False, server_default='false')
+    # 이 도안이 어느 등급(basic/standard/premium)으로 생성됐는지 감사/이력 표시용
+    # 사본이다. 결제 금액 검증의 근거로는 쓰지 않는다 — 그 근거는 언제나
+    # tier_info_path(prefix) 사이드카 파일 하나다(docs/pricing-tiers.md 10.4절).
+    # NOTE: create_all()이 기존 테이블에 컬럼을 추가해주지 않으므로, paid 컬럼과
+    # 동일하게 기존 DB에는 수동 마이그레이션(ALTER TABLE designs ADD COLUMN
+    # tier VARCHAR(20);)이 필요하다.
+    tier = db.Column(db.String(20), nullable=True)
     created_at = db.Column(db.DateTime, server_default=db.func.now())
 
     user = db.relationship('User', backref=db.backref('designs', lazy=True))

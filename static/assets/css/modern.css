@@ -675,8 +675,9 @@ a { color: inherit; text-decoration: none; }
     letter-spacing: 0.02em;
 }
 
-/* 결제 섹션 상단의 등급 비교 카드. 순수 정보 제공용이며 클릭/선택 동작이
-   없다 — 실제 결제 가능한 상품과 금액은 아래 order-summary 하나뿐이다. */
+/* 업로드 전 등급(BASIC/STANDARD/PREMIUM) 선택 패널. 라디오 버튼 하나만
+   선택 가능하며, 선택된 tier가 그대로 /upload의 FormData와 #Payment의
+   주문 요약/결제 금액에 쓰인다(docs/pricing-tiers.md 8~10장). */
 .tier-panel {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -718,6 +719,44 @@ a { color: inherit; text-decoration: none; }
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     background: var(--bg);
+}
+
+/* 선택 가능한 카드(라디오 래핑용) 전용 보강 스타일. 기존 .tier-card는
+   장식용 그대로 두고, 클릭 가능한 버전에서만 커서/포커스/선택 표시를 얹는다. */
+.tier-card.tier-card-selectable {
+    cursor: pointer;
+    user-select: none;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tier-card.tier-card-selectable:hover {
+    border-color: var(--primary);
+}
+
+.tier-card.tier-card-selectable:has(.tier-radio:focus-visible) {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+.tier-card.tier-card-selectable.is-selected {
+    border-color: var(--primary);
+    background: color-mix(in srgb, var(--primary) 8%, var(--bg));
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+
+.tier-card.tier-card-selectable.is-selected .tier-name {
+    color: var(--primary-dark);
+}
+
+.tier-card-check {
+    align-self: flex-end;
+    font-size: 0.85rem;
+    color: var(--primary);
+    visibility: hidden;
+}
+
+.tier-card.tier-card-selectable.is-selected .tier-card-check {
+    visibility: visible;
 }
 
 .tier-name {
@@ -781,6 +820,14 @@ a { color: inherit; text-decoration: none; }
 .pay-method-btn { background: var(--bg); color: var(--text); border: 1px solid var(--border) !important; }
 
 .pay-method-btn:hover { background: var(--border); }
+
+.pay-method-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background: var(--bg) !important;
+}
+
+.pay-method-btn:disabled:hover { background: var(--bg) !important; }
 
 .pay-method-kakao { background: #fee500 !important; color: #191919 !important; }
 
