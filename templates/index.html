@@ -343,8 +343,8 @@
             // 초기화하고, 업로드 완료 시 서버가 폴링 응답으로 내려주는 tier/price_krw로
             // 갱신한다. 클라이언트는 이 값을 결제 요청에 그대로 쓸 뿐, 실제 승인/금액
             // 검증은 서버(/payment/success)가 tier_info 사이드카로 다시 확인한다.
-            let currentTierPrice = {{ current_tier_price if current_tier_price is not none else 'null' }};
-            let currentTierName = {{ ('"' + current_tier_name + '"') if current_tier_name else 'null' }};
+            let currentTierPrice = {{ current_tier_price | tojson }};
+            let currentTierName = {{ current_tier_name | tojson }};
 
             function getSelectedTier() {
                 const checked = document.querySelector('.tier-radio:checked');
