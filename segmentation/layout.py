@@ -1,6 +1,32 @@
 import cv2
 import numpy as np
 
+_LABEL_FONT = cv2.FONT_HERSHEY_SIMPLEX
+_LABEL_FONT_SCALE = 0.35
+_LABEL_FONT_THICKNESS = 1
+
+
+def _clamp_label_anchor(label, cx, cy, img_shape):
+    """cv2.putText 앵커는 텍스트 baseline 좌하단 기준점이다. 지금까지는 (cx-5,
+    cy+5)를 그대로 앵커로 써서, cx/cy가 이미지 가장자리에 가까우면(예:
+    레이아웃 상 도형이 캔버스 끝에 걸친 구획) 실제로 그려지는 텍스트 폭/높이를
+    고려하지 않은 채 캔버스 밖으로 텍스트 일부가 잘려 그려졌다.
+    cv2.getTextSize로 실제 텍스트 bounding box를 구해서, 그 bounding box가
+    항상 이미지 안쪽에 완전히 들어오도록 앵커 좌표를 clamp한다."""
+    h_img, w_img = img_shape[:2]
+    (text_w, text_h), baseline = cv2.getTextSize(
+        label, _LABEL_FONT, _LABEL_FONT_SCALE, _LABEL_FONT_THICKNESS
+    )
+
+    ax, ay = cx - 5, cy + 5
+    # 텍스트가 실제로 차지하는 영역: x in [ax, ax+text_w], y in [ay-text_h, ay+baseline]
+    max_ax = max(0, w_img - 1 - text_w)
+    ax = int(max(0, min(ax, max_ax)))
+    min_ay = min(text_h, h_img - 1)
+    max_ay = max(min_ay, h_img - 1 - baseline)
+    ay = int(max(min_ay, min(ay, max_ay)))
+    return ax, ay
+
 
 def refine_layout_and_label(final_segments, stylized_img, palette_rgb):
     """[Step 5] 통합된 구획 기반으로 도안, 번호, 팔레트 채우기 결과 생성"""
@@ -79,13 +105,37 @@ def refine_layout_and_label(final_segments, stylized_img, palette_rgb):
             # M["m00"] <= 40 스킵과 동등하게, 실제 조각 면적(0이 아닌 픽셀 수)
             # 기준으로 너무 작으면 번호를 생략한다.
             if cv2.countNonZero(local_mask) > 40:
-                dist = cv2.distanceTransform(local_mask, cv2.DIST_L2, 5)
+                # 주의: cv2.distanceTransform은 주어진 배열 "안"만 보고, 배열
+                # 바깥에 배경(0) 픽셀이 있다는 사실을 전혀 모른다. local_mask는
+                # 이 조각의 boundingRect에 딱 맞춘 배열이라서, 도형은 정의상
+                # 이 배열 경계 중 어느 한 지점에서는 반드시 맞닿는다 — 그
+                # 지점은 실제로는 도형의 진짜 가장자리인데도, distanceTransform은
+                # "이 방향엔 배경이 없다(=아직 안쪽일 수 있다)"고 오인해서
+                # 오히려 그쪽을 더 안전한(먼) 지점으로 잘못 판단할 수 있다.
+                # 이 배열 경계가 하필 이미지 캔버스 가장자리와 겹치는
+                # 구획에서는 이 편향이 극단적으로 나타나, "가장 안쪽인 점"이
+                # 캔버스 맨 끝(cx=0, cy=0 등)으로 쏠려 버린다(번호가 잘려
+                # 보이거나 다른 구획과의 경계에 걸쳐 보이는 원인).
+                # local_mask 사방에 1픽셀 배경 테두리를 덧대면(copyMakeBorder)
+                # distanceTransform이 이 배열 경계도 실제 배경(바깥)으로 인식해
+                # 이 편향 없이 도형 내부의 진짜 가장 안쪽 점을 찾는다.
+                padded_mask = cv2.copyMakeBorder(
+                    local_mask, 1, 1, 1, 1, cv2.BORDER_CONSTANT, value=0
+                )
+                dist = cv2.distanceTransform(padded_mask, cv2.DIST_L2, 5)
                 _, _, _, max_loc = cv2.minMaxLoc(dist)
-                cx, cy = max_loc[0] + x, max_loc[1] + y
+                # padding으로 밀린 좌표(+1)를 다시 원래 로컬 좌표계로 보정
+                cx, cy = max_loc[0] + x - 1, max_loc[1] + y - 1
 
-                cv2.putText(overlay_out, label, (cx - 5, cy + 5),
+                # 위 padding 보정으로 대부분의 캔버스 가장자리 쏠림은 해소되지만,
+                # 그와 무관하게 cv2.putText는 텍스트 크기를 고려하지 않고 그대로
+                # 그리므로, cx/cy가 여전히 이미지 경계에 아주 가까운 경우를 대비해
+                # 실제로 그려질 텍스트 폭/높이만큼 앵커를 캔버스 안쪽으로 clamp한다.
+                label_pos = _clamp_label_anchor(label, cx, cy, overlay_out.shape)
+
+                cv2.putText(overlay_out, label, label_pos,
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 0), 1, cv2.LINE_AA)
-                cv2.putText(paper_design, label, (cx - 5, cy + 5),
+                cv2.putText(paper_design, label, label_pos,
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (80, 80, 80), 1, cv2.LINE_AA)
 
     return overlay_out, paper_design, rendered_res
